@@ -23,7 +23,9 @@ static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 	lw->inv_weight = 0;
 }
 
-/* se sched_entity의 time slice를 산출하여 return */
+/* se sched_entity의 time slice를 산출하여 return 
+	( time slice = periods * (weight/tot_weight) 으로 계산하는데 
+	이 때, x/tot_weight는 성능향상을 목적으로 x*(2^32/tot_weight)>>32 로 계산 )*/
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
@@ -68,9 +70,8 @@ static u64 __sched_period(unsigned long nr_running)
 	return period;
 }
 
-/* task별 time slice 시간을 산출 
-	time slice = periods * (weight/tot_weight) 으로 계산하는데 
-	이 때, x/tot_weight는 성능향상을 목적으로 x*(2^32/tot_weight)>>32 로 계산 */
+/* __calc_delta(x, w, wt)라고 할 때 'x*(w/wt) = '에 대한 계산을 성능향상을 위해 
+	'x*w*(2^32/wt)>>32 = '로 변경하여 계산해줌 */
 static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
 {
 	//u64 fact = scale_load_down(weight); //64bit 아키텍처에서 weight에 대한 해상도를 조절하는 부분 구현 x
@@ -103,3 +104,21 @@ static void __update_inv_weight(struct load_weight *lw)
 	else
 		lw->inv_weight = WMULT_CONST / w;
 }
+
+/* vruntime = time slice * (weight-0 / weight) 로 계산 
+	se가 weight-0일 경우 time slice값을 바로 리턴해줄 수 있음 */
+static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
+{
+	if(unlikely(se->load.weight != NICE_0_LOAD))
+		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+
+	return delta;
+}
+
+/* sched_entity의 load에 해당하는 time slice 값을 산출하고 이를 통해 vruntime 값을 계산 */
+static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	return calc_delta_fair(sched_slice(cfs_rq, se), se);
+}
+
+

@@ -19,6 +19,9 @@
 
 #define PF_KTHREAD				0x00000002	
 
+#define NICE_0_LOAD_SHIFT		10
+#define NICE_0_LOAD				(1L << NICE_0_LOAD_SHIFT)
+
 
 extern struct task_struct *current;
 extern struct task_struct * task[NR_TASKS];
