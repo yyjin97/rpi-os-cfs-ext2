@@ -1,6 +1,8 @@
 #ifndef _SCHED_H
 #define _SCHED_H
 
+#include "types.h"
+
 #define THREAD_CPU_CONTEXT			0 		// offset of cpu_context in task_struct 
 
 #ifndef __ASSEMBLER__
@@ -60,7 +62,34 @@ struct task_struct {
 	long priority;
 	long preempt_count;
 	unsigned long flags;
+	struct sched_entity se;
 	struct mm_struct mm;
+};
+
+struct sched_entity {
+	struct load_weight		load;
+	unsigned int 			on_rq;
+
+	u64				exec_start;
+	u64				sum_exec_runtime;
+	u64				vruntime;
+	u64				prev_sum_exec_runtime;
+
+	struct cfs_rq	*cfs_rq;
+};
+
+struct load_weight {
+	unsigned long			weight;
+	u32				inv_weight;
+};
+
+struct cfs_rq {
+	struct load_weight load;
+	unsigned int nr_running;
+
+	u64 min_vruntime;
+
+	struct sched_entity *curr;
 };
 
 extern void sched_init(void);
@@ -75,6 +104,7 @@ extern void exit_process(void);
 #define INIT_TASK \
 /*cpu_context*/ { { 0,0,0,0,0,0,0,0,0,0,0,0,0}, \
 /* state etc */	 0,0,15, 0, PF_KTHREAD, \
+/* sched_entity */	\
 /* mm */ { 0, 0, {{0}}, 0, {0}} \
 }
 #endif
