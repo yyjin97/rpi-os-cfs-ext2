@@ -2,6 +2,7 @@
 #define _SCHED_H
 
 #include "types.h"
+#include "rbtree.h"
 
 #define THREAD_CPU_CONTEXT			0 		// offset of cpu_context in task_struct 
 
@@ -18,6 +19,8 @@
 #define TASK_ZOMBIE				1
 
 #define PF_KTHREAD				0x00000002	
+
+#define TIF_NEED_RESCHED		1	
 
 #define NICE_0_LOAD_SHIFT		10
 #define NICE_0_LOAD				(1L << NICE_0_LOAD_SHIFT)
@@ -64,6 +67,7 @@ struct task_struct {
 	long counter;
 	long priority;
 	long preempt_count;
+	unsigned long thread_flags;		//linux에서 thread_info 구조체의 멤버변수 
 	unsigned long flags;
 	struct sched_entity se;
 	struct mm_struct mm;
@@ -71,6 +75,7 @@ struct task_struct {
 
 struct sched_entity {
 	struct load_weight		load;
+	struct rb_node 			run_node;
 	unsigned int 			on_rq;
 
 	u64				exec_start;
@@ -92,7 +97,11 @@ struct cfs_rq {
 
 	u64 min_vruntime;
 
+	struct rb_root_cached tasks_timeline;		//cfs 런큐의 RB 트리
+
 	struct sched_entity *curr;
+
+	u64 clock_task;					//linux kernel의 경우 rq구조체에 존재 
 };
 
 extern void sched_init(void);
@@ -103,6 +112,16 @@ extern void preempt_enable(void);
 extern void switch_to(struct task_struct* next);
 extern void cpu_switch_to(struct task_struct* prev, struct task_struct* next);
 extern void exit_process(void);
+
+static inline int test_tsk_need_resched(struct task_struct *tsk)
+{
+	return tsk->thread_flags & TIF_NEED_RESCHED;
+}
+
+static inline void set_tsk_need_resched(struct task_struct *tsk)
+{
+	tsk->thread_flags &= TIF_NEED_RESCHED;
+}
 
 #define INIT_TASK \
 /*cpu_context*/ { { 0,0,0,0,0,0,0,0,0,0,0,0,0}, \
