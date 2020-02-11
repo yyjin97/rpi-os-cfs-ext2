@@ -67,8 +67,8 @@ struct task_struct {
 	long counter;
 	long priority;
 	long preempt_count;
-	unsigned long thread_flags;		//linux에서 thread_info 구조체의 멤버변수 
 	unsigned long flags;
+	unsigned long thread_flags;		//linux에서 thread_info 구조체의 멤버변수 
 	struct sched_entity se;
 	struct mm_struct mm;
 };
@@ -125,8 +125,8 @@ static inline void set_tsk_need_resched(struct task_struct *tsk)
 
 #define INIT_TASK \
 /*cpu_context*/ { { 0,0,0,0,0,0,0,0,0,0,0,0,0}, \
-/* state etc */	 0,0,15, 0, PF_KTHREAD, \
-/* sched_entity */	\
+/* state etc */	 0,0,15, 0, PF_KTHREAD, 0, \
+/* sched_entity */ { {0,0}, {0,0,0}, 0, 0, 0, 0, 0, 0 }, \
 /* mm */ { 0, 0, {{0}}, 0, {0}} \
 }
 #endif

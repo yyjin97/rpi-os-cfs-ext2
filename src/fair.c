@@ -23,67 +23,13 @@ static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 	lw->inv_weight = 0;
 }
 
-/* se sched_entity의 time slice를 산출하여 return 
-	( time slice = periods * (weight/tot_weight) 으로 계산하는데 
-	이 때, x/tot_weight는 성능향상을 목적으로 x*(2^32/tot_weight)>>32 로 계산 )*/
-static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+/* load weight 값을 dec만큼 감소시키고 inv_weight 값은 0으로 reset */
+static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
-	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
-	
-	//아직 task group을 사용하지 않을 것이므로 for_each_sched_entity를 통해 루프를 돌면서 실행하지 않음
-	struct load_weight *load;
-	struct load_weight lw;
-
-	/* linux에서는 cfs_rq_of 함수를 이용해 task가 실행 중인 cpu의 rq->cfs_rq를 구해야하지만
-		현재 rpi os version에서는 하나의 cpu만 이용하므로 cfs_rq도 하나만 존재하게됨 */
-	//******cfs_rq구조체가 task마다 존재할 경우 task에 맞는 cfs_rq구조체를 가져와야함!!!
-
-	load = &cfs_rq->load;
-
-	/* 현재 프로세스가 cpu에서 실행중인 경우 se->on_rq가 0이 됨
-		CFS는 실행 중인 프로세스를 run queue에서 제거하므로 전체 시간 및 load 계산 시 
-		이를 다시 추가해서 계산해 주어야 함 */
-	if(unlikely(!se->on_rq)) {
-		lw = cfs_rq->load;
-
-		update_load_add(&lw, se->load.weight);
-		load = &lw;
-	}
-	slice = __calc_delta(slice, se->load.weight, load);
-	
-	return slice;
+	lw->weight -= dec;
+	lw->inv_weight = 0;
 }
 
-/* 실행중인 task값을 기준으로 period 값을 구함 
-	period = (nr_running <= sched_nr_latency)? 
-		sched_latency : sched_mingranularity * nr_running  */
-static u64 __sched_period(unsigned long nr_running) 
-{
-	u64 period = sysctl_sched_latency;
-	unsigned long nr_latency = sched_nr_latency;
-
-	if(unlikely(nr_running > nr_latency)) {
-		period = sysctl_sched_min_granularity;
-		period *= nr_running;
-	}
-
-	return period;
-}
-
-/* __calc_delta(x, w, wt)라고 할 때 'x*(w/wt) = '에 대한 계산을 성능향상을 위해 
-	'x*w*(2^32/wt)>>32 = '로 변경하여 계산해줌 */
-static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
-{
-	//u64 fact = scale_load_down(weight); //64bit 아키텍처에서 weight에 대한 해상도를 조절하는 부분 구현 x
-	u64 fact = weight;
-	int shift = WMULT_SHIFT;
-
-	__update_inv_weight(lw);
-
-	fact = (u64) (u32)fact * lw->inv_weight;
-
-	return (delta_exec*fact) >> shift;
-}
 
 /* lw->inv_weight값을 0xffff_ffff/lw->weight 값으로 변경 
 	( 'delta_exec/weight = '와 같이 나눗셈이 필요할 때 나눗셈 대신 'delta_exec*wmult>>32'를 사용 
@@ -105,20 +51,29 @@ static void __update_inv_weight(struct load_weight *lw)
 		lw->inv_weight = WMULT_CONST / w;
 }
 
-/* vruntime = execution time * (weight-0 / weight) 로 계산 
-	( se가 weight-0일 경우 time slice값을 바로 리턴해줄 수 있음 ) */
-static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
+/* __calc_delta(x, w, wt)라고 할 때 'x*(w/wt) = '에 대한 계산을 성능향상을 위해 
+	'x*w*(2^32/wt)>>32 = '로 변경하여 계산해줌 */
+static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
 {
-	if(unlikely(se->load.weight != NICE_0_LOAD))
-		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+	//u64 fact = scale_load_down(weight); //64bit 아키텍처에서 weight에 대한 해상도를 조절하는 부분 구현 x
+	u64 fact = weight;
+	int shift = WMULT_SHIFT;
 
-	return delta;
+	__update_inv_weight(lw);
+
+	fact = (u64) (u32)fact * lw->inv_weight;
+
+	return (delta_exec*fact) >> shift;
 }
 
-/* sched_entity의 load에 해당하는 time slice 값을 산출하고 이를 통해 vruntime 값을 계산 */
-static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static inline struct task_struct *task_of(struct sched_entity *se)
 {
-	return calc_delta_fair(sched_slice(cfs_rq, se), se);
+	return container_of(se, struct task_struct, se);
+}
+
+static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
+{
+	return p->se.cfs_rq;
 }
 
 /* max_vruntime과 vruntime 중 더 큰 값을 리턴 */
@@ -139,6 +94,12 @@ static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 		min_vruntime = vruntime;
 
 	return min_vruntime;
+}
+
+/* entity_before(a, b)에서 a의 vruntime이 b보다 작은경우 true를 리턴 */
+static inline int entity_before(struct sched_entity *a, struct sched_entity *b)
+{
+	return (s64)(a->vruntime - b->vruntime) < 0;
 }
 
 /* 현재 실행중인 task와 RB트리의 가장 왼쪽노드 task 중 vruntime이 더 작은 값으로 cfs_rq의 min_vruntime을 update */
@@ -173,6 +134,112 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 
 }
 
+/* 프로세스의 정보를 rbtree에 넣고 tree를 조정하는 작업의 실제 처리를 담당 */
+static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	struct rb_node **link = &cfs_rq->tasks_timeline.rb_root.rb_node;
+	struct rb_node *parent = NULL;
+	struct sched_entity *entry;
+	int leftmost = 1;
+
+	/* rbtree에서 추가할 위치를 찾음 */
+	while(*link) {
+		parent = *link;
+		entry = rb_entry(parent, struct sched_entity, run_node);
+
+		/* 충돌발생을 고려하지 않음 같은 key값을 갖는 경우 같이 둠 */
+		if(entity_before(se, entry)){
+			link = &parent->rb_left;
+		} else {
+			link = &parent->rb_right;
+			leftmost = 0;
+		}
+	}
+
+	rb_link_node(&se->run_node, parent, link);
+	rb_insert_color_cached();
+}
+
+/* rbtree에서 프로세스를 제거하는 실제 처리를 담당 */
+static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	rb_erase_cached();
+}
+
+/* rbtree의 leftmost node를 리턴 */
+struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
+{
+	struct rb_node *left = rb_first_cached(&cfs_rq->tasks_timeline);
+
+	if(!left)
+		return NULL;
+
+	return rb_entry(left, struct sched_entity, run_node);
+}
+
+/* vruntime = execution time * (weight-0 / weight) 로 계산 
+	( se가 weight-0일 경우 time slice값을 바로 리턴해줄 수 있음 ) */
+static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
+{
+	if(unlikely(se->load.weight != NICE_0_LOAD))
+		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+
+	return delta;
+}
+
+/* 실행중인 task값을 기준으로 period 값을 구함 
+	period = (nr_running <= sched_nr_latency)? 
+		sched_latency : sched_mingranularity * nr_running  */
+static u64 __sched_period(unsigned long nr_running) 
+{
+	u64 period = sysctl_sched_latency;
+	unsigned long nr_latency = sched_nr_latency;
+
+	if(unlikely(nr_running > nr_latency)) {
+		period = sysctl_sched_min_granularity;
+		period *= nr_running;
+	}
+
+	return period;
+}
+
+/* se sched_entity의 time slice를 산출하여 return 
+	( time slice = periods * (weight/tot_weight) 으로 계산하는데 
+	이 때, x/tot_weight는 성능향상을 목적으로 x*(2^32/tot_weight)>>32 로 계산 )*/
+static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
+	
+	//아직 task group을 사용하지 않을 것이므로 for_each_sched_entity를 통해 루프를 돌면서 실행하지 않음
+	struct load_weight *load;
+	struct load_weight lw;
+
+	/* linux에서는 cfs_rq_of 함수를 이용해 task가 실행 중인 cpu의 rq->cfs_rq를 구해야하지만
+		현재 rpi os version에서는 하나의 cpu만 이용하므로 cfs_rq도 하나만 존재하게됨 */
+	//******cfs_rq구조체가 task마다 존재할 경우 task에 맞는 cfs_rq구조체를 가져와야함!!!
+
+	load = &cfs_rq->load;
+
+	/* 현재 프로세스가 cpu에서 실행중인 경우 se->on_rq가 0이 됨
+		CFS는 실행 중인 프로세스를 run queue에서 제거하므로 전체 시간 및 load 계산 시 
+		이를 다시 추가해서 계산해 주어야 함 */
+	if(unlikely(!se->on_rq)) {
+		lw = cfs_rq->load;
+
+		update_load_add(&lw, se->load.weight);
+		load = &lw;
+	}
+	slice = __calc_delta(slice, se->load.weight, load);
+	
+	return slice;
+}
+
+/* sched_entity의 load에 해당하는 time slice 값을 산출하고 이를 통해 vruntime 값을 계산 */
+static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	return calc_delta_fair(sched_slice(cfs_rq, se), se);
+}
+
 /* task의 실행시간을 기반으로 vruntime값을 update하고 cfs_rq의 min_vruntime을 update */
 static void update_curr(struct cfs_rq *cfs_rq)
 {
@@ -193,11 +260,17 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	//account_cfs_rq_runtime(); //bandwidth 사용시에만 필요 ????
 }
 
+/* 새로 실행하는 task의 exec_start시간 update */
+static inline void update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	se->exec_start = cfs_rq->clock_task;
+}
+
 /* 현재 task에 resched 요청 플래그를 설정함 
 	(linux kernel에서는 core.c에 존재) */
 void resched_curr(struct sched_entity *se)
 {
-	struct task_struct *curr = container_of(se, struct task_struct, se);
+	struct task_struct *curr = task_of(se);
 
 	if(test_tsk_need_resched(curr))
 		return;
@@ -208,6 +281,28 @@ void resched_curr(struct sched_entity *se)
 	set_tsk_need_resched(curr);
 	
 	return;
+}
+
+/* rbtree에 프로세스를 추가 */
+static void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se) 
+{
+	update_curr(cfs_rq);
+	account_entity_enqueue(cfs_rq, se);
+
+	if(!(cfs_rq->curr == se))
+		__enqueue_entity(cfs_rq, se);
+	se->on_rq = 1;
+}
+
+/* rbtree에서 프로세스를 추가 */
+static void dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se) 
+{
+	update_curr(cfs_rq);
+
+	if(se != cfs_rq->curr)
+		__dequeue_entity(cfs_rq, se);
+	se->on_rq = 0;
+	account_entity_dequeue(cfs_rq, se);
 }
 
 /* 현재 task가 선점이 필요한지 확인함 다음 2가지 경우에 선점이 일어남
@@ -240,6 +335,42 @@ static void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 		resched_curr(curr);
 }
 
+/* next entity인 se의 exec_start를 갱신하고 cfs_rq의 curr로 등록 */
+static void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if(se->on_rq) {
+		//statistic update
+		__dequeue_entity(cfs_rq, se);
+	}
+
+	update_stats_curr_start(cfs_rq, se);
+	cfs_rq->curr = se;
+
+	se->prev_sum_exec_runtime = se->sum_exec_runtime;
+}
+
+/* rbtree의 leftmost node를 다음에 실행할 entity로 선택 */
+static struct sched_entity * pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+{
+	struct sched_entity *left = __pick_first_entity(cfs_rq);
+
+	if(!left || (curr && entity_before(curr, left)))
+		left = curr;
+
+	return left;
+}
+
+/* 기존에 실행하던 task를 다시 rbtree에 넣음 */
+static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
+{
+	if(prev->on_rq) {
+		update_curr(cfs_rq);
+
+		__enqueue_entity(cfs_rq, prev);
+	}
+	cfs_rq->curr = NULL;
+}
+
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	/* Update run-time statistics of the 'current' */
@@ -260,3 +391,52 @@ static void task_tick_fair(struct task_struct *curr)
 	cfs_rq = se->cfs_rq;
 	entity_tick(cfs_rq, se);
 }
+
+/********미완성***********/
+static void task_fork_fair(struct task_struct *p)
+{
+	struct cfs_rq *cfs_rq;
+	struct sched_entity *se = &p->se, *curr;
+
+	cfs_rq = task_cfs_rq(current);
+	curr = cfs_rq->curr;
+	if(curr) {
+		update_curr(cfs_rq);
+		se->vruntime = curr->vruntime;
+	}
+}
+
+/* 새로 추가하는 entity의 load값을 cfs_rq의 load에 추가 */
+static void account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	update_load_add(&cfs_rq->load, se->load.weight);
+
+	cfs_rq->nr_running++;
+}
+
+static void account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	update_load_sub(&cfs_rq->load, se->load.weight);
+
+	cfs_rq->nr_running--;
+}
+
+static struct task_struct * pick_next_task_fair(struct cfs_rq *cfs_rq, struct task_struct *prev)
+{
+	struct sched_entity *se;
+	struct task_struct *p;
+	int new_tasks;
+
+	if(!cfs_rq->nr_running)
+		return NULL;
+
+	put_prev_entity(cfs_rq, &prev->se);
+
+	se = pick_next_entity(cfs_rq, NULL);
+	set_next_entity(cfs_rq, se);
+
+	p = task_of(se);
+
+	return p;
+}
+

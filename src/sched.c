@@ -9,6 +9,11 @@ struct task_struct *current = &(init_task);
 struct task_struct * task[NR_TASKS] = {&(init_task), };
 int nr_tasks = 1;
 
+void sched_init(void)
+{
+
+}
+
 void preempt_disable(void)
 {
 	current->preempt_count++;
