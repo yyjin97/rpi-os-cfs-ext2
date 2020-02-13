@@ -31,6 +31,7 @@ void kernel_main()
 	irq_vector_init();
 	timer_init();
 	enable_interrupt_controller();
+	sched_init();
 	enable_irq();
 
 	int res = copy_process(PF_KTHREAD, (unsigned long)&kernel_process, 0);

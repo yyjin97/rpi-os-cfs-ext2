@@ -1,5 +1,5 @@
-#ifndef _LINUX_KERNEL_H
-#define _LINUX_KERNEL_H
+#ifndef _KERNEL_H
+#define _KERNEL_H
 
 /**
  * container_of - cast a member of a structure out to the containing structure

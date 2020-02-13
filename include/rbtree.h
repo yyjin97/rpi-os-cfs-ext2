@@ -1,5 +1,5 @@
-#ifndef _LINUX_RBTREE_H
-#define _LINUX_RBTREE_H 
+#ifndef _RBTREE_H
+#define _RBTREE_H 
 
 #include "kernel.h"
 
