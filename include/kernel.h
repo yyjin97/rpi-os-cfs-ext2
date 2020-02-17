@@ -12,5 +12,13 @@
     const typeof(((type *)0)->member) *__mptr = (ptr);  \
     ((type *)(__mptr - __builtin_offsetof(type,member))); })
 
+/**
+ * swap - swap values of @a and @b
+ * @a: first value
+ * @b: second value
+ */
+#define swap(a, b) \
+	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
+
 
 #endif

@@ -37,6 +37,7 @@ struct sched_entity * pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entit
 void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev);
 void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr);
 void task_tick_fair(struct task_struct *curr);
+extern void task_fork_fair(struct task_struct *p);
 
 void account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se);
 void account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se);

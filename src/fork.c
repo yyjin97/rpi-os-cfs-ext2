@@ -17,8 +17,8 @@ int copy_process(unsigned long clone_flags, unsigned long fn, unsigned long arg)
 		return -1;
 
 	if (clone_flags & PF_KTHREAD) {
-		p->cpu_context.x19 = fn;
-		p->cpu_context.x20 = arg;
+		p->thread_info.cpu_context.x19 = fn;
+		p->thread_info.cpu_context.x20 = arg;
 	} else {
 		struct pt_regs * cur_regs = task_pt_regs(current);
 		*childregs = *cur_regs;
@@ -28,16 +28,23 @@ int copy_process(unsigned long clone_flags, unsigned long fn, unsigned long arg)
 	p->flags = clone_flags;
 	p->priority = current->priority;
 	p->state = TASK_RUNNING;
-	p->counter = p->priority;
-	p->preempt_count = 1; //disable preemtion until schedule_tail
+	p->thread_info.preempt_count = 1; //disable preemtion until schedule_tail
 
-	p->cpu_context.pc = (unsigned long)ret_from_fork;
-	p->cpu_context.sp = (unsigned long)childregs;
-	int pid = nr_tasks++;
-	task[pid] = p;	
+	p->thread_info.cpu_context.pc = (unsigned long)ret_from_fork;
+	p->thread_info.cpu_context.sp = (unsigned long)childregs;
+	p->pid = nr_tasks++;
+
+	p->se.cfs_rq = task_cfs_rq(current);
+
+	clear_tsk_need_resched(p);
+	set_load_weight(p);
+
+	task_fork_fair(p);
+	
+	//enqueue_entity()
 
 	preempt_enable();
-	return pid;
+	return p->pid;
 }
 
 

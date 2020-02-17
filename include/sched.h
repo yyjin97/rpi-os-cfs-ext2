@@ -54,6 +54,7 @@ struct task_struct {
 	unsigned long flags;
 	struct sched_entity se;
 	struct mm_struct mm;
+	pid_t pid;
 };
 
 struct sched_entity {
@@ -87,6 +88,7 @@ struct cfs_rq {
 	u64 clock_task;					//linux kernel의 경우 rq구조체에 존재 
 };
 
+extern void set_load_weight(struct task_struct *p);
 extern void sched_init(void);
 extern void schedule(void);
 extern void timer_tick(void);
@@ -125,7 +127,8 @@ static bool need_resched(void)
 /*thread_info*/ { { { 0,0,0,0,0,0,0,0,0,0,0,0,0}, 0, 0 }, \
 /* state etc */	 0, 120, PF_KTHREAD, \
 /* sched_entity */ { {0,0}, {0,0,0}, 0, 0, 0, 0, 0, 0 }, \
-/* mm */ { 0, 0, {{0}}, 0, {0}} \
+/* mm */ { 0, 0, {{0}}, 0, {0}}, \
+/* pid */ 0 \
 }
 #endif
 #endif

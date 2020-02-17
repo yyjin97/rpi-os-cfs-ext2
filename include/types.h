@@ -13,4 +13,6 @@ typedef short               s16;
 typedef int                 s32;
 typedef long long           s64;
 
+typedef int		            pid_t;
+
 #endif

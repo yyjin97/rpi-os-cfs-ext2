@@ -4,6 +4,7 @@
 #include "printf.h"
 #include "utils.h"
 #include "mm.h"
+#include "timer.h"
 
 static struct task_struct init_task = INIT_TASK;
 struct task_struct *current = &(init_task);
@@ -11,9 +12,14 @@ struct task_struct * task[NR_TASKS] = {&(init_task), };
 struct cfs_rq cfs_rq;
 int nr_tasks = 1;
 
-void update_rq_clock()
+void update_rq_clock(struct cfs_rq *cfs_rq)
 {
-	
+	s64 delta;
+
+	delta = timer_clock() - cfs_rq->clock_task;
+	if(delta < 0)
+		return;
+	cfs_rq->clock_task += delta;
 }
 
 /* 현재 task에 resched 요청 플래그를 설정함 */
@@ -46,8 +52,19 @@ void sched_init(void)
 	cfs_rq.nr_running = 0;
 	cfs_rq.tasks_timeline = RB_ROOT_CACHED;
 	cfs_rq.min_vruntime = (u64)(-(1LL << 20));
+	cfs_rq.clock_task = timer_clock();
+
+	cfs_rq.load.inv_weight = 0;
+	cfs_rq.load.weight = 0;
 	
-	set_load_weight(current);
+	set_load_weight(&init_task);
+	cfs_rq.curr = &current;
+
+	init_task.se.cfs_rq = &cfs_rq;
+	init_task.se.exec_start = cfs_rq.clock_task;
+	init_task.se.vruntime = cfs_rq.min_vruntime;
+
+	enqueue_entity(&cfs_rq, &init_task.se);
 }
 
 void preempt_disable(void)

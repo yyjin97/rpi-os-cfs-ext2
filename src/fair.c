@@ -1,4 +1,5 @@
 #include "fair.h"
+#include "kernel.h"
 
 #define WMULT_CONST		(~0U)
 #define WMULT_SHIFT 	32
@@ -14,6 +15,10 @@ unsigned int sysctl_sched_min_granularity	= 750000ULL;
 
 /* This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity */
 unsigned int sched_nr_latency = 8;
+
+/* After fork, child runs first. If set to 0 (default) then
+	parent will (try to) run first. */
+unsigned int sysctl_sched_child_runs_first = 1;
 
 /* load weight 값을 inc만큼 추가하고 inv_weight 값은 0으로 reset */
 inline void update_load_add(struct load_weight *lw, unsigned long inc) 
@@ -161,6 +166,9 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		}
 	}
 
+	if(leftmost) 
+		cfs_rq->tasks_timeline.rb_leftmost = &se->run_node;
+
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color_cached();
 }
@@ -274,13 +282,32 @@ inline void update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *
 	se->exec_start = cfs_rq->clock_task;
 }
 
+/* cfs_rq에 enqueue될 entity의 vruntime을 결정 
+	(기본적으로는 cfs_rq의 min_vruntime을 기준으로 결정) */
+void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
+{
+	u64 vruntime = cfs_rq->min_vruntime;
+
+	if(initial) 
+		vruntime += sched_vslice(cfs_rq, se);
+	else {
+		unsigned long thresh = sysctl_sched_latency;
+
+		thresh >>= 1;			//linux kernel에서는 GENTLE_FAIR_SLEEPERS를 지원하는 경우에만 실행
+
+		vruntime -= thresh;
+	}
+
+	se->vruntime = max_vruntime(se->vruntime, vruntime);
+}
+
 /* rbtree에 프로세스를 추가 */
 void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se) 
 {
 	update_curr(cfs_rq);
 	account_entity_enqueue(cfs_rq, se);
 
-	if(!(cfs_rq->curr == se))
+	if(se != cfs_rq->curr)
 		__enqueue_entity(cfs_rq, se);
 	se->on_rq = 1;
 }
@@ -293,7 +320,10 @@ void dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	if(se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
 	se->on_rq = 0;
+
 	account_entity_dequeue(cfs_rq, se);
+
+	update_min_vruntime(cfs_rq);
 }
 
 /* 현재 task가 선점이 필요한지 확인함 다음 2가지 경우에 선점이 일어남
@@ -389,18 +419,29 @@ void task_tick_fair(struct task_struct *curr)
 	entity_tick(cfs_rq, se);
 }
 
-/********미완성********header 파일에 추가안함***/
+/* 새로 생성된 task의 스케줄링 정보 초기화 및 vruntime 조정 */
 void task_fork_fair(struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se, *curr;
 
 	cfs_rq = task_cfs_rq(current);
+
+	update_rq_clock(cfs_rq);
+
 	curr = cfs_rq->curr;
 	if(curr) {
 		update_curr(cfs_rq);
 		se->vruntime = curr->vruntime;
 	}
+	place_entity(cfs_rq, se, 1);
+
+	if(sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
+		swap(curr->vruntime, se->vruntime);
+		resched_curr(se);
+	}
+
+	se->vruntime -= cfs_rq->min_vruntime;
 }
 
 /* 새로 추가하는 entity의 load값을 cfs_rq의 load에 추가 */
