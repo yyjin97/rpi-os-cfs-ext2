@@ -3,7 +3,6 @@
 
 #include "types.h"
 #include "rbtree.h"
-#include "thread_info.h"
 
 #define THREAD_CPU_CONTEXT			0 		// offset of cpu_context in task_struct 
 
@@ -21,6 +20,8 @@
 
 #define PF_KTHREAD				0x00000002	
 
+#define TIF_NEED_RESCHED		1	
+
 #define NICE_0_LOAD_SHIFT		10
 #define NICE_0_LOAD				(1L << NICE_0_LOAD_SHIFT)
 #define scale_load(w)			(w)
@@ -32,7 +33,26 @@ extern struct task_struct *current;
 extern struct task_struct * task[NR_TASKS];
 extern int nr_tasks;
 
-#define MAX_PROCESS_PAGES			16	
+#define MAX_PROCESS_PAGES			16
+
+#define current_thread_info() ((struct thread_info *)current)
+
+/* /arch/arm64/include/asm/proccessor.h */
+struct cpu_context {
+	unsigned long x19;
+	unsigned long x20;
+	unsigned long x21;
+	unsigned long x22;
+	unsigned long x23;
+	unsigned long x24;
+	unsigned long x25;
+	unsigned long x26;
+	unsigned long x27;
+	unsigned long x28;
+	unsigned long fp;
+	unsigned long sp;
+	unsigned long pc;
+};
 
 struct user_page {
 	unsigned long phys_addr;
@@ -47,14 +67,9 @@ struct mm_struct {
 	unsigned long kernel_pages[MAX_PROCESS_PAGES];
 };
 
-struct task_struct {
-	struct thread_info thread_info;
-	long state;	
-	long priority;
-	unsigned long flags;
-	struct sched_entity se;
-	struct mm_struct mm;
-	pid_t pid;
+struct load_weight {
+	unsigned long			weight;
+	u32				inv_weight;
 };
 
 struct sched_entity {
@@ -70,9 +85,20 @@ struct sched_entity {
 	struct cfs_rq	*cfs_rq;
 };
 
-struct load_weight {
-	unsigned long			weight;
-	u32				inv_weight;
+struct thread_info {
+    struct cpu_context  cpu_context;        //linux kernel에서는 thread_struct 구조체에 존재
+    unsigned long       flags;
+    int                 preempt_count;
+};
+
+struct task_struct {
+	struct thread_info thread_info;
+	long state;	
+	long priority;
+	unsigned long flags;
+	struct sched_entity se;
+	struct mm_struct mm;
+	pid_t pid;
 };
 
 struct cfs_rq {
@@ -97,12 +123,31 @@ extern void preempt_enable(void);
 extern void switch_to(struct task_struct* next);
 extern void cpu_switch_to(struct task_struct* prev, struct task_struct* next);
 extern void exit_process(void);
+extern void resched_curr(struct sched_entity *se);
+extern void update_rq_clock(struct cfs_rq *cfs_rq);
+
+/* thread_info */
+static inline void set_ti_thread_flag(struct thread_info *ti, int flag)
+{
+    ti->flags = (unsigned long)flag;
+}
+
+static inline void clear_ti_thread_flag(struct thread_info *ti, int flag)
+{
+    ti->flags = 0;
+}
+
+static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
+{
+    return ti->flags == (unsigned long)flag ? 1 : 0;
+}
 
 static inline struct thread_info *task_thread_info(struct task_struct *task)
 {
 	return &task->thread_info;
 }
 
+/* task_struct */
 static inline int test_tsk_need_resched(struct task_struct *tsk)
 {
 	return test_ti_thread_flag(task_thread_info(tsk), TIF_NEED_RESCHED);
@@ -118,10 +163,8 @@ static inline void clear_tsk_need_resched(struct task_struct *tsk)
 	clear_ti_thread_flag(task_thread_info(tsk), TIF_NEED_RESCHED);
 }
 
-static bool need_resched(void) 
-{
-	return test_ti_thread_flag(current_thread_info(), TIF_NEED_RESCHED);
-}
+extern const int sched_prio_to_weight[40];
+extern const u32 sched_prio_to_wmult[40];
 
 #define INIT_TASK \
 /*thread_info*/ { { { 0,0,0,0,0,0,0,0,0,0,0,0,0}, 0, 0 }, \
@@ -132,3 +175,4 @@ static bool need_resched(void)
 }
 #endif
 #endif
+

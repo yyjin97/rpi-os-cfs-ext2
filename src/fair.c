@@ -21,14 +21,14 @@ unsigned int sched_nr_latency = 8;
 unsigned int sysctl_sched_child_runs_first = 1;
 
 /* load weight 값을 inc만큼 추가하고 inv_weight 값은 0으로 reset */
-inline void update_load_add(struct load_weight *lw, unsigned long inc) 
+static inline void update_load_add(struct load_weight *lw, unsigned long inc) 
 {
 	lw->weight += inc;
 	lw->inv_weight = 0;
 }
 
 /* load weight 값을 dec만큼 감소시키고 inv_weight 값은 0으로 reset */
-inline void update_load_sub(struct load_weight *lw, unsigned long dec)
+static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
 	lw->weight -= dec;
 	lw->inv_weight = 0;
@@ -42,14 +42,14 @@ void __update_inv_weight(struct load_weight *lw)
 {
 	unsigned long w;
 
-	if(likely(lw->inv_weight))
+	if(lw->inv_weight)
 		return;
 
 	w = lw->weight;
 
-	if(unlikely(w >= WMULT_CONST))
+	if(w >= WMULT_CONST)
 		lw->inv_weight = 1;
-	else if(unlikely(!w)) 
+	else if(!w)
 		lw->inv_weight = WMULT_CONST;
 	else
 		lw->inv_weight = WMULT_CONST / w;
@@ -76,18 +76,18 @@ u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
 	return (delta_exec*fact) >> shift;
 }
 
-inline struct task_struct *task_of(struct sched_entity *se)
+struct task_struct *task_of(struct sched_entity *se)
 {
 	return container_of(se, struct task_struct, se);
 }
 
-inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
+struct cfs_rq *task_cfs_rq(struct task_struct *p)
 {
 	return p->se.cfs_rq;
 }
 
 /* max_vruntime과 vruntime 중 더 큰 값을 리턴 */
-inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
+static inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - max_vruntime);
 	if(delta > 0) 
@@ -97,7 +97,7 @@ inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 }
 
 /* min_vruntime과 vruntime 중 더 작은 값을 리턴 */
-inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
+static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - min_vruntime);
 	if(delta < 0)
@@ -107,7 +107,7 @@ inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 }
 
 /* entity_before(a, b)에서 a의 vruntime이 b보다 작은경우 true를 리턴 */
-inline int entity_before(struct sched_entity *a, struct sched_entity *b)
+static inline int entity_before(struct sched_entity *a, struct sched_entity *b)
 {
 	return (s64)(a->vruntime - b->vruntime) < 0;
 }
@@ -192,9 +192,9 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
 
 /* vruntime = execution time * (weight-0 / weight) 로 계산 
 	( se가 weight-0일 경우 time slice값을 바로 리턴해줄 수 있음 ) */
-inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
+static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
-	if(unlikely(se->load.weight != NICE_0_LOAD))
+	if(se->load.weight != NICE_0_LOAD)
 		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
 
 	return delta;
@@ -208,7 +208,7 @@ u64 __sched_period(unsigned long nr_running)
 	u64 period = sysctl_sched_latency;
 	unsigned long nr_latency = sched_nr_latency;
 
-	if(unlikely(nr_running > nr_latency)) {
+	if(nr_running > nr_latency) {
 		period = sysctl_sched_min_granularity;
 		period *= nr_running;
 	}
@@ -229,13 +229,13 @@ u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	/* linux에서는 cfs_rq_of 함수를 이용해 task가 실행 중인 cpu의 rq->cfs_rq를 구해야하지만
 		현재 rpi os version에서는 하나의 cpu만 이용하므로 cfs_rq도 하나만 존재하게됨 */
-	//******cfs_rq구조체가 task마다 존재할 경우 task에 맞는 cfs_rq구조체를 가져와야함!!!
+	//******cfs_rq구조체가 cpu마다 존재할 경우 cpu에 맞는 cfs_rq구조체를 가져와야함!!!
 
 	load = &cfs_rq->load;
 
 	/* se의 on_rq가 0인 경우 run queue에 존재하지 않고 current entity가 아닌경우이므로
 		전체 시간 및 load 계산 시 이를 다시 추가해서 계산해 주어야 함 */
-	if(unlikely(!se->on_rq)) {
+	if(!se->on_rq) {
 		lw = cfs_rq->load;
 
 		update_load_add(&lw, se->load.weight);
@@ -259,11 +259,11 @@ void update_curr(struct cfs_rq *cfs_rq)
 	u64 now = cfs_rq->clock_task;
 	u64 delta_exec;
 
-	if(unlikely(!curr))
+	if(!curr)
 		return;
 
 	delta_exec = now - curr->exec_start;
-	if(unlikely((s64)delta_exec <= 0))
+	if((s64)delta_exec <= 0)
 		return;
 
 	curr->exec_start = now;
@@ -277,7 +277,7 @@ void update_curr(struct cfs_rq *cfs_rq)
 }
 
 /* 새로 실행하는 task의 exec_start시간 update */
-inline void update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static inline void update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	se->exec_start = cfs_rq->clock_task;
 }
@@ -346,7 +346,7 @@ void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if(delta_exec < sysctl_sched_min_granularity)
 		return;
 
-	se = __pick_first_entry(cfs_rq);
+	se = __pick_first_entity(cfs_rq);
 	delta = curr->vruntime - se->vruntime;
 
 	if(delta < 0)		//현재 task의 vruntime이 가장 작은 경우 
@@ -400,12 +400,14 @@ void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
+	struct task_struct *p = task_of(curr);
+
 	/* Update run-time statistics of the 'current' */
 	update_curr(cfs_rq);
 
 	/* 현재 고정 스케줄러 틱만 사용한다고 가정하여 hrtick을 사용하는 경우 pass */
 
-	if(cfs_rq->nr_running > 1)
+	if(cfs_rq->nr_running > 1 && p->thread_info.preempt_count <= 0)
 		check_preempt_tick(cfs_rq, curr);
 }
 
@@ -438,10 +440,14 @@ void task_fork_fair(struct task_struct *p)
 
 	if(sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
 		swap(curr->vruntime, se->vruntime);
-		resched_curr(se);
+		resched_curr(curr);
 	}
 
 	se->vruntime -= cfs_rq->min_vruntime;
+
+	/* 새로 생성한 task를 enqueue
+		(linux kernel에서는 task_fork_fair함수에 이부분 존재하지 않음) */
+	enqueue_entity(cfs_rq, se); 		
 }
 
 /* 새로 추가하는 entity의 load값을 cfs_rq의 load에 추가 */
@@ -463,7 +469,6 @@ struct task_struct * pick_next_task_fair(struct cfs_rq *cfs_rq, struct task_stru
 {
 	struct sched_entity *se;
 	struct task_struct *p;
-	int new_tasks;
 
 	if(!cfs_rq->nr_running)
 		return NULL;

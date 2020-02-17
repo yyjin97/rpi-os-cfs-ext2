@@ -1,7 +1,11 @@
 #ifndef _RBTREE_H
 #define _RBTREE_H 
 
-#include "kernel.h"
+#ifndef __ASSEMBLER__
+
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
 
 struct rb_node {
     unsigned long __rb_parent_color;
@@ -27,10 +31,14 @@ static inline void rb_link_node(struct rb_node *node, struct rb_node *parent, st
     *rb_link = node;
 }
 
+void rb_insert_color_cached(void);
+void rb_erase_cached(void);
+
 #define RB_ROOT (struct rb_root) { NULL, }
 #define RB_ROOT_CACHED (struct rb_root_cached) { { NULL, }, NULL }
 #define rb_entry(ptr, type, member) container_of(ptr,type,member)
 
 #define rb_first_cached(root) (root)->rb_leftmost
 
+#endif
 #endif

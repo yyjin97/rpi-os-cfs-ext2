@@ -11,6 +11,11 @@ struct task_struct *current = &(init_task);
 struct task_struct * task[NR_TASKS] = {&(init_task), };
 struct cfs_rq cfs_rq;
 int nr_tasks = 1;
+ 
+bool need_resched(void) 
+{
+	return test_ti_thread_flag(current_thread_info(), TIF_NEED_RESCHED);
+}
 
 void update_rq_clock(struct cfs_rq *cfs_rq)
 {
@@ -58,7 +63,7 @@ void sched_init(void)
 	cfs_rq.load.weight = 0;
 	
 	set_load_weight(&init_task);
-	cfs_rq.curr = &current;
+	cfs_rq.curr = &current->se;
 
 	init_task.se.cfs_rq = &cfs_rq;
 	init_task.se.exec_start = cfs_rq.clock_task;
@@ -81,14 +86,12 @@ void preempt_enable(void)
 void _schedule(void)
 {
 	preempt_disable();
-	int next,c;
 	struct task_struct * next;
 	struct task_struct * prev;
-	struct cfs_rq * cfs_rq;			//**********cfs_rq 구조체 초기화 필요!!!!!
 
-	prev = cfs_rq->curr;
+	prev = current;
 
-	next = pick_next_task_fair(cfs_rq, prev);
+	next = pick_next_task_fair(&cfs_rq, prev);
 	clear_tsk_need_resched(prev);
 
 	switch_to(next);

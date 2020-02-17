@@ -3,6 +3,7 @@
 #include "fork.h"
 #include "utils.h"
 #include "entry.h"
+#include "fair.h"
 
 int copy_process(unsigned long clone_flags, unsigned long fn, unsigned long arg)
 {
@@ -40,8 +41,6 @@ int copy_process(unsigned long clone_flags, unsigned long fn, unsigned long arg)
 	set_load_weight(p);
 
 	task_fork_fair(p);
-	
-	//enqueue_entity()
 
 	preempt_enable();
 	return p->pid;

@@ -3,32 +3,24 @@
 
 #include "sched.h"
 
-inline void update_load_add(struct load_weight *lw, unsigned long inc); 
-inline void update_load_sub(struct load_weight *lw, unsigned long dec);
 void __update_inv_weight(struct load_weight *lw);
 
 u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw);
 
-inline struct task_struct *task_of(struct sched_entity *se);
-inline struct cfs_rq *task_cfs_rq(struct task_struct *p);
-inline u64 max_vruntime(u64 max_vruntime, u64 vruntime);
-inline u64 min_vruntime(u64 min_vruntime, u64 vruntime);
+extern struct task_struct *task_of(struct sched_entity *se);
+extern struct cfs_rq *task_cfs_rq(struct task_struct *p);
 
-inline int entity_before(struct sched_entity *a, struct sched_entity *b);
 void update_min_vruntime(struct cfs_rq *cfs_rq);
 void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se);
 void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se);
 
 struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq);
-inline u64 calc_delta_fair(u64 delta, struct sched_entity *se);
 
 u64 __sched_period(unsigned long nr_running); 
 u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se);
 u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se);
 
 void update_curr(struct cfs_rq *cfs_rq);
-inline void update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se);
-
 void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se); 
 void dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se); 
 void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr);

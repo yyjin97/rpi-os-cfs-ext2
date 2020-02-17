@@ -21,4 +21,4 @@
 	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
 
 
-#endif
+#endif /* _KERNEL_H */

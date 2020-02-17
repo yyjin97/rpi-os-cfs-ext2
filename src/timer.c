@@ -26,6 +26,3 @@ u32 timer_clock( void )
 {
 	return curVal;
 }
-
-
-update_rq_clock
