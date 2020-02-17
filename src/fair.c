@@ -1,5 +1,7 @@
 #include "fair.h"
 #include "kernel.h"
+#include "rbtree.h"
+#include "printf.h"
 
 #define WMULT_CONST		(~0U)
 #define WMULT_SHIFT 	32
@@ -117,7 +119,6 @@ void update_min_vruntime(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
 	struct rb_node *leftmost = rb_first_cached(&cfs_rq->tasks_timeline);
-
 	u64 vruntime = cfs_rq->min_vruntime;
 
 	if(curr) {
@@ -152,12 +153,12 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct sched_entity *entry;
 	int leftmost = 1;
 
-	/* rbtree에서 추가할 위치를 찾음 */
+	/* rbtree에서 추가할 위치를 찾음 */ 
 	while(*link) {
 		parent = *link;
 		entry = rb_entry(parent, struct sched_entity, run_node);
 
-		/* 충돌발생을 고려하지 않음 같은 key값을 갖는 경우 같이 둠 */
+		/* 충돌발생을 고려하지 않음 같은 key값을 갖는 경우 같이 둠 */ 
 		if(entity_before(se, entry)){
 			link = &parent->rb_left;
 		} else {
@@ -170,16 +171,16 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		cfs_rq->tasks_timeline.rb_leftmost = &se->run_node;
 
 	rb_link_node(&se->run_node, parent, link);
-	rb_insert_color_cached();
-}
+	rb_insert_color_cached(&se->run_node, &cfs_rq->tasks_timeline, leftmost);
+} 
 
 /* rbtree에서 프로세스를 제거하는 실제 처리를 담당 */
 void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	rb_erase_cached();
+	rb_erase_cached(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
-/* rbtree의 leftmost node를 리턴 */
+/* rbtree의 leftmost node를 리턴 */ 
 struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *left = rb_first_cached(&cfs_rq->tasks_timeline);
@@ -200,7 +201,7 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 	return delta;
 }
 
-/* 실행중인 task값을 기준으로 period 값을 구함 
+/* 실행중인 task의 개수를 기준으로 period 값을 구함 
 	period = (nr_running <= sched_nr_latency)? 
 		sched_latency : sched_mingranularity * nr_running  */
 u64 __sched_period(unsigned long nr_running) 
@@ -346,7 +347,7 @@ void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if(delta_exec < sysctl_sched_min_granularity)
 		return;
 
-	se = __pick_first_entity(cfs_rq);
+	se = __pick_first_entity(cfs_rq); 
 	delta = curr->vruntime - se->vruntime;
 
 	if(delta < 0)		//현재 task의 vruntime이 가장 작은 경우 
@@ -364,7 +365,7 @@ void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		__dequeue_entity()는 dequeue_entity()와 달리 on_rq필드를 초기화하지 않음 */
 	if(se->on_rq) {
 		//statistic update
-		__dequeue_entity(cfs_rq, se);
+		__dequeue_entity(cfs_rq, se); 
 	}
 
 	update_stats_curr_start(cfs_rq, se);
@@ -479,6 +480,8 @@ struct task_struct * pick_next_task_fair(struct cfs_rq *cfs_rq, struct task_stru
 	set_next_entity(cfs_rq, se);
 
 	p = task_of(se);
+
+	printf("pid %d\n\r", p->pid);
 
 	return p;
 }

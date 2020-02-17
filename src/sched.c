@@ -92,16 +92,18 @@ void _schedule(void)
 	prev = current;
 
 	next = pick_next_task_fair(&cfs_rq, prev);
+	printf("complete pick next\n\r");
 	clear_tsk_need_resched(prev);
+	printf("complete clear need resched\n\r");
 
 	switch_to(next);
+	printf("switch to %d\n\r", next->pid);
 	preempt_enable();
 }
 
 void schedule(void)
 {
-	if(need_resched())
-		_schedule();
+	_schedule();
 }
 
 
@@ -129,7 +131,7 @@ void timer_tick()
 	disable_irq();
 }
 
-void exit_process(){
+void exit_process(){					//CFS코드 아직 적용안된 함수*********
 	preempt_disable();
 	for (int i = 0; i < NR_TASKS; i++){
 		if (task[i] == current) {
