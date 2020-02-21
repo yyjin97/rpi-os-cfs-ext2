@@ -56,7 +56,8 @@ void sched_init(void)
 {
 	cfs_rq.nr_running = 0;
 	cfs_rq.tasks_timeline = RB_ROOT_CACHED;
-	cfs_rq.min_vruntime = (u64)(-(1LL << 20));
+	cfs_rq.min_vruntime = 0;
+	//cfs_rq.min_vruntime = (u64)(-(1LL << 20));
 	cfs_rq.clock_task = timer_clock();
 
 	cfs_rq.load.inv_weight = 0;
@@ -68,6 +69,8 @@ void sched_init(void)
 	init_task.se.cfs_rq = &cfs_rq;
 	init_task.se.exec_start = cfs_rq.clock_task;
 	init_task.se.vruntime = cfs_rq.min_vruntime;
+
+	place_entity(&cfs_rq, &current->se, 1);
 
 	enqueue_entity(&cfs_rq, &init_task.se);
 }
@@ -92,12 +95,11 @@ void _schedule(void)
 	prev = current;
 
 	next = pick_next_task_fair(&cfs_rq, prev);
-	printf("complete pick next\n\r");
 	clear_tsk_need_resched(prev);
-	printf("complete clear need resched\n\r");
+
+	//printf("prev pid %d vruntime %d next pid %d vruntime %d\n\r",prev->pid, prev->se.vruntime, next->pid, next->se.vruntime);
 
 	switch_to(next);
-	printf("switch to %d\n\r", next->pid);
 	preempt_enable();
 }
 
@@ -122,12 +124,19 @@ void schedule_tail(void) {
 }
 
 
-void timer_tick()
+void timer_tick(void)
 {
+	if(current->thread_info.preempt_count > 0)
+		return;
+
+	update_rq_clock(task_cfs_rq(current));
+
 	task_tick_fair(current);
 	enable_irq();
-	if(need_resched())
+	if(need_resched()) {
+		printf("z");
 		_schedule();
+	}
 	disable_irq();
 }
 

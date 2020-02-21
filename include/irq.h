@@ -8,4 +8,6 @@ void irq_vector_init( void );
 void enable_irq( void );
 void disable_irq( void );
 
+void print(void);
+
 #endif  /*_IRQ_H */

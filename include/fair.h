@@ -20,6 +20,8 @@ u64 __sched_period(unsigned long nr_running);
 u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se);
 u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se);
 
+extern void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial);
+
 void update_curr(struct cfs_rq *cfs_rq);
 void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se); 
 void dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se); 

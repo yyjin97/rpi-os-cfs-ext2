@@ -50,3 +50,4 @@ void handle_irq(void)
 			printf("Inknown pending irq: %x\r\n", irq);
 	}
 }
+

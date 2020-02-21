@@ -10,7 +10,7 @@
  */
 #define container_of(ptr, type, member) ({      \
     const typeof(((type *)0)->member) *__mptr = (ptr);  \
-    ((type *)(__mptr - __builtin_offsetof(type,member))); })
+    ((type *)((char *)__mptr - __builtin_offsetof(type,member))); })
 
 /**
  * swap - swap values of @a and @b
@@ -19,6 +19,5 @@
  */
 #define swap(a, b) \
 	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
-
 
 #endif /* _KERNEL_H */
