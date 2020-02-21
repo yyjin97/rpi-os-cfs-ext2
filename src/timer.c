@@ -3,7 +3,7 @@
 #include "sched.h"
 #include "peripherals/timer.h"
 
-const unsigned int interval = 200000;
+const unsigned int interval = 800000;
 //const unsigned int interval = 7500;
 unsigned int curVal = 0;
 unsigned int clock = 0;

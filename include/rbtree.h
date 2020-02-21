@@ -46,8 +46,10 @@ extern void rb_erase_cached(struct rb_node *node, struct rb_root_cached *root);
 #define RB_EMPTY_NODE(node) ((node)->__rb_parent_color == (unsigned long)(node))
 
 #define rb_first_cached(root) (root)->rb_leftmost
+
 /* parent node를 return */
 #define rb_parent(r) ((struct rb_node *)((r)->__rb_parent_color & ~3))
+#define __rb_parent(pc) ((struct rb_node *)(pc & ~3))
 
 #endif
 #endif

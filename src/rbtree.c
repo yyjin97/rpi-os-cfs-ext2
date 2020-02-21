@@ -1,5 +1,6 @@
 #include "rbtree.h"
 #include "compiler.h"
+#include "printf.h"
 
 /* rb 노드의 색을 color로 set함 (__rb_parent_color 변수의 마지막 bit는 해당 노드의 색을 나타냄) */
 static inline void rb_set_parent_color(struct rb_node *rb, struct rb_node *p, int color)
@@ -25,8 +26,7 @@ static inline void __rb_change_child(struct rb_node *old, struct rb_node *new, s
         WRITE_ONCE(root->rb_node, new);
 }
 
-/* old의 parent를 new의 parent로 변경, 
-    new를 old의 parent로 변경하고 color를 old의 color로 set,
+/* old의 parent를 new의 parent로 변경, new를 old의 parent로 변경하고 color를 old의 color로 set,
     old의 parent의 child를 new로 변경 */
 static inline void __rb_rotate_set_parents(struct rb_node *old, struct rb_node *new, struct rb_root *root, int color)
 {
@@ -72,7 +72,7 @@ struct rb_node *rb_next(const struct rb_node *node)
 
 void __rb_insert(struct rb_node *node, struct rb_root_cached *root)
 {
-    struct rb_node *parent = root->rb_root.rb_node;
+    struct rb_node *parent = rb_red_parent(node);
     struct rb_node *gparent, *tmp;
 
     while(true) {
@@ -153,7 +153,7 @@ void __rb_insert(struct rb_node *node, struct rb_root_cached *root)
             WRITE_ONCE(parent->rb_right, gparent);
             if(tmp)
                 rb_set_parent_color(tmp, gparent, RB_BLACK);
-            __rb_rotate_set_parents(gparent, parent, root, RB_RED);
+            __rb_rotate_set_parents(gparent, parent, &root->rb_root, RB_RED);
             break;
         } else {            //parent 노드가 gparent 노드의 right child인 경우 
             tmp = gparent->rb_left;
@@ -180,12 +180,12 @@ void __rb_insert(struct rb_node *node, struct rb_root_cached *root)
                 parent = node;
                 tmp = node->rb_left;
             }
-            
+            /* uncle node가 black이고 node가 parent의 right child인 경우 */
             WRITE_ONCE(gparent->rb_right, tmp);
             WRITE_ONCE(parent->rb_left, gparent);
             if(tmp) 
                 rb_set_parent_color(tmp, gparent, RB_BLACK);
-            __rb_rotate_set_parents(gparent, parent, root, RB_RED);
+            __rb_rotate_set_parents(gparent, parent, &root->rb_root, RB_RED);
             break;
         }
     }
@@ -196,6 +196,7 @@ void rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root, b
     if(leftmost) 
         root->rb_leftmost = node;
 
+    printf("rb insert \n\r");
     __rb_insert(node, root);
 
 }

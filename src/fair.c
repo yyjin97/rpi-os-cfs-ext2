@@ -158,6 +158,7 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	/* rbtree에서 추가할 위치를 찾음 */ 
 	while(*link) {
+		//printf("while ");
 		parent = *link;
 		entry = rb_entry(parent, struct sched_entity, run_node);
 
@@ -170,8 +171,8 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		}
 	}
 
-	if(leftmost) 
-		cfs_rq->tasks_timeline.rb_leftmost = &se->run_node;
+	//if(leftmost) 
+	//	cfs_rq->tasks_timeline.rb_leftmost = &se->run_node;
 
 	
 	rb_link_node(&se->run_node, parent, link);
