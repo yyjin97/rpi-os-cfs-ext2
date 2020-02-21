@@ -2,7 +2,13 @@
 #include "compiler.h"
 #include "printf.h"
 
-/* rb 노드의 색을 color로 set함 (__rb_parent_color 변수의 마지막 bit는 해당 노드의 색을 나타냄) */
+/* rb 노드의 parent를 p로 set */
+static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
+{
+    rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
+}
+
+/* rb 노드의 parent를 p로 set하고 색을 color로 set함 (__rb_parent_color 변수의 마지막 bit는 해당 노드의 색을 나타냄) */
 static inline void rb_set_parent_color(struct rb_node *rb, struct rb_node *p, int color)
 {
     rb->__rb_parent_color = (unsigned long) p | color;
@@ -189,6 +195,101 @@ void __rb_insert(struct rb_node *node, struct rb_root_cached *root)
             break;
         }
     }
+}
+
+static struct rb_node *__rb_erase_augmented(struct rb_node *node, struct rb_root *root)
+{
+    struct rb_node *child = node->rb_right;
+    struct rb_node *tmp = node->rb_left;
+    struct rb_node *parent, *rebalance;
+    unsigned long pc;
+
+    if(!tmp) {
+        /* Case 1 : 삭제하려는 node의 child가 1개 이하인 경우 
+            만약 어떤 노드의 child가 하나인 경우 그 child노드는 반드시 red임 
+            또한 해당 node는 반드시 black임 (red의 parent는 black이므로) */
+
+        pc = node->__rb_parent_color;
+        parent = __rb_parent(pc);
+        __rb_change_child(node, child, parent, root);
+        if(child) {
+            child->__rb_parent_color = pc;
+            rebalance = NULL;
+        } else {
+            rebalance = rb_is_black(node) ? parent : NULL;
+        }
+    } else if (!child) {
+        /* 삭제하려는 node의 child가 1개인 경우 */
+        pc = node->__rb_parent_color;
+        parent = __rb_parent(pc);
+        __rb_change_child(node, tmp, parent, root);
+        tmp->__rb_parent_color = pc;
+        rebalance = NULL;
+    } else {
+        /* 삭제하려는 node의 child가 2개인 경우 */
+        struct rb_node *successor = child, *child2;
+
+        tmp = child->rb_left;
+        if(!tmp) {
+            /*
+			 * Case 2: node's successor is its right child
+			 *
+			 *    (n)          (s)
+			 *    / \          / \
+			 *  (x) (s)  ->  (x) (c)
+			 *        \
+			 *        (c)
+			 */
+            parent = successor;
+            child2 = successor->rb_right;
+        } else {
+            /*
+			 * Case 3: node's successor is leftmost under
+			 * node's right child subtree
+			 *
+			 *    (n)          (s)
+			 *    / \          / \
+			 *  (x) (y)  ->  (x) (y)
+			 *      /            /
+			 *    (p)          (p)
+			 *    /            /
+			 *  (s)          (c)
+			 *    \
+			 *    (c)
+			 */
+            do {
+                parent = successor;
+                successor = tmp;
+                tmp = tmp->rb_left;
+            } while(tmp);
+
+            child2 = successor->rb_right;
+            WRITE_ONCE(parent->rb_left, child2);
+            WRITE_ONCE(successor->rb_right, parent);
+            rb_set_parent(child, successor);
+
+        }
+
+        tmp = node->rb_left;
+        WRITE_ONCE(successor->rb_left, tmp);
+        rb_set_parent(tmp, successor);
+
+        pc = node->__rb_parent_color;
+        tmp = __rb_parent(pc);
+        __rb_change_child(node, successor, tmp, root);
+
+       if(child2){
+           successor->__rb_parent_color = pc;
+           rb_set_parent_color(child2, successor, RB_BLACK);
+           rebalance = NULL;
+       } else {
+           unsigned long pc2 = successor->__rb_parent_color;
+           successor->__rb_parent_color = pc;
+           rebalance = __rb_is_black(pc2) ? parent : NULL;
+       }
+    }
+
+    return rebalance;
 }
 
 void rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root, bool leftmost)
