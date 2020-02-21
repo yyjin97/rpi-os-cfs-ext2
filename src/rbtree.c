@@ -203,7 +203,12 @@ void rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root, b
 
 void rb_erase_cached(struct rb_node *node, struct rb_root_cached *root)
 { 
+    struct rb_node *rebalance;
+
     if(root->rb_leftmost == node)
         root->rb_leftmost = rb_next(node);
-    //rb_erase(node, &root->rb_root);
+    
+    //rebalance = __rb_erase_augumented();
+    //if(rebalance)
+    //        __rb_erase_color();
 }
