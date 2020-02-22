@@ -2,6 +2,12 @@
 #include "compiler.h"
 #include "printf.h"
 
+/* rb 노드의 color를 black으로 set */
+static inline void rb_set_black(struct rb_node *rb)
+{
+    rb->__rb_parent_color |= RB_BLACK;
+}
+
 /* rb 노드의 parent를 p로 set */
 static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
 {
@@ -292,9 +298,129 @@ static struct rb_node *__rb_erase_augmented(struct rb_node *node, struct rb_root
     return rebalance;
 }
 
-static void __rb_erase_color()
+static void __rb_erase_color(struct rb_node *parent, struct rb_root *root)
 {
+    struct rb_node *node = NULL, *sibling, *tmp1, *tmp2;
 
+    while(true) {
+        sibling = parent->rb_right;
+        if(node != sibling) {   
+            /* 이중흑색노드가 parent의 left child인 경우 */
+            if(rb_is_red(sibling)) {
+                /* Case 1 : 이중흑색노드의 형제가 red인 경우 
+                    - 형제를 black 부모를 red로 칠하면서 부모기준으로 좌회전함 */
+
+                tmp1 = sibling->rb_left;
+                WRITE_ONCE(parent->rb_right, tmp1);
+                WRITE_ONCE(sibling->rb_left, parent);
+                rb_set_parent_color(tmp1, parent, RB_BLACK);
+                __rb_rotate_set_parents(parent, sibling, root, RB_RED);
+                sibling = tmp1;
+            }
+
+            tmp1 = sibling->rb_right;
+            if(!tmp1 || rb_is_black(tmp1)) {
+                tmp2 = sibling->rb_left;
+                if(!tmp2 || rb_is_black(tmp2)) {
+                    /* Case 2 : 이중흑색노드의 형제가 black이고 형제의 양쪽 자식이 모두 black인 경우
+                        - 형제노드를 red로 만들고 이중흑색노드를 부모에게 전달, 
+                          이 때, 부모노드가 red이면 black으로 변경하고 끝나지만 
+                          부모노드가 black인 경우 부모노드가 이중흑색노드가 되어 과정을 반복함 */
+                    
+                    rb_set_parent_color(sibling, parent, RB_RED);
+                    if(rb_is_red(parent)) {
+                        rb_set_black(parent);
+                    } else {
+                        node = parent;
+                        parent = rb_parent(node);
+                        if(parent)
+                            continue;
+                    }
+                    break;
+                }
+
+                /* Case 3 : 이중흑색노드의 형제가 black이고 형제의 오른쪽 자식이 black, 왼쪽 자식이 red인 경우 
+                    - 형제노드를 기준으로 우회전 함 */
+                
+                tmp1 = tmp2->rb_right;
+                WRITE_ONCE(sibling->rb_left, tmp1);
+                WRITE_ONCE(tmp2->rb_right, sibling);
+                WRITE_ONCE(parent->rb_right, tmp2);
+                if(tmp1) 
+                    rb_set_parent_color(tmp1, sibling, RB_BLACK);
+                tmp1 = sibling;
+                sibling = tmp2;
+            }
+
+            /* Case 4 : 이중흑색노드의 형제가 black이고 형제의 오른쪽 자식이 red인 경우 
+                - 부모노드를 기준으로 좌회전하면서 부모노드의 색을 형제에게 넘기고 
+                  부모노드와 형제의 오른쪽 자식을 black으로 칠함 */
+
+            tmp2 = sibling->rb_left;
+            WRITE_ONCE(parent->rb_right, tmp2);
+            WRITE_ONCE(sibling->rb_left, parent);
+            rb_set_parent_color(tmp1, sibling, RB_BLACK);
+            if(tmp2) 
+                rb_set_parent(tmp2, parent);
+            __rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
+            break;    
+        } else {
+            /* 이중흑색노드가 parent의 right child인 경우 */
+            
+            sibling = parent->rb_left;
+            if(rb_is_red(sibling)) {
+                /* Case 1 : 이중흑색노드의 형제가 red인 경우 */
+
+                tmp1 = sibling->rb_right;
+                WRITE_ONCE(parent->rb_left, tmp1);
+                WRITE_ONCE(sibling->rb_right, parent);
+                rb_set_parent_color(tmp1, parent, RB_BLACK);
+                __rb_rotate_set_parents(parent, sibling, root, RB_RED);
+                sibling = tmp1;
+            }
+
+            tmp1 = sibling->rb_left;
+            if(!tmp1 || rb_is_black(tmp1)){
+                tmp2 = sibling->rb_right;
+                if(!tmp2 || rb_is_black(tmp2)) {
+                    /* Case 2 : 이중흑색노드의 형제가 black이고 형제의 양쪽 자식이 모두 black인 경우 */
+
+                    rb_set_parent_color(sibling, parent, RB_RED);
+                    if(rb_is_red(parent)) {
+                        rb_set_black(parent);
+                    } else {
+                        node = parent;
+                        parent = rb_parent(node);
+                        if(parent) 
+                            continue;
+                    }
+                    break;
+                }
+
+                /* Case 3 : 이중흑색노드의 형제가 black이고 형제의 오른쪽 자식이 black, 왼쪽 자식이 red인 경우 */
+
+                tmp1 = tmp2->rb_left;
+                WRITE_ONCE(sibling->rb_right, tmp1);
+                WRITE_ONCE(tmp2->rb_left, sibling);
+                WRITE_ONCE(parent->rb_left, tmp2);
+                if(tmp1) 
+                    rb_set_parent_color(tmp1, sibling, RB_BLACK);
+                tmp1 = sibling;
+                sibling = tmp2;
+            }
+
+            /* Case 4 : 이중흑색노드의 형제가 black이고 형제의 오른쪽 자식이 red인 경우 */
+
+            tmp2 = sibling->rb_right;
+            WRITE_ONCE(parent->rb_left, tmp2);
+            WRITE_ONCE(sibling->rb_right, parent);
+            rb_set_parent_color(tmp1, sibling, RB_BLACK);
+            if(tmp2)
+                rb_set_parent(tmp2, parent);
+            __rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
+            break;
+        }
+     }
 }
 
 void rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root, bool leftmost)
@@ -315,6 +441,6 @@ void rb_erase_cached(struct rb_node *node, struct rb_root_cached *root)
         root->rb_leftmost = rb_next(node);
     
     rebalance = __rb_erase_augmented(node, &root->rb_root);
-    //if(rebalance)
-    //        __rb_erase_color();
+    if(rebalance)
+            __rb_erase_color(rebalance, &root->rb_root);
 }
