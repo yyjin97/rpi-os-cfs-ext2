@@ -265,7 +265,7 @@ static struct rb_node *__rb_erase_augmented(struct rb_node *node, struct rb_root
 
             child2 = successor->rb_right;
             WRITE_ONCE(parent->rb_left, child2);
-            WRITE_ONCE(successor->rb_right, parent);
+            WRITE_ONCE(successor->rb_right, child);
             rb_set_parent(child, successor);
 
         }
@@ -280,7 +280,7 @@ static struct rb_node *__rb_erase_augmented(struct rb_node *node, struct rb_root
 
        if(child2){
            successor->__rb_parent_color = pc;
-           rb_set_parent_color(child2, successor, RB_BLACK);
+           rb_set_parent_color(child2, parent, RB_BLACK);
            rebalance = NULL;
        } else {
            unsigned long pc2 = successor->__rb_parent_color;
@@ -290,6 +290,11 @@ static struct rb_node *__rb_erase_augmented(struct rb_node *node, struct rb_root
     }
 
     return rebalance;
+}
+
+static void __rb_erase_color()
+{
+
 }
 
 void rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root, bool leftmost)
@@ -309,7 +314,7 @@ void rb_erase_cached(struct rb_node *node, struct rb_root_cached *root)
     if(root->rb_leftmost == node)
         root->rb_leftmost = rb_next(node);
     
-    //rebalance = __rb_erase_augumented();
+    rebalance = __rb_erase_augmented(node, &root->rb_root);
     //if(rebalance)
     //        __rb_erase_color();
 }
