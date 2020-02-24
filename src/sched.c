@@ -1,7 +1,6 @@
 #include "sched.h"
 #include "fair.h"
 #include "irq.h"
-#include "printf.h"
 #include "utils.h"
 #include "mm.h"
 #include "timer.h"
@@ -97,14 +96,13 @@ void _schedule(void)
 	next = pick_next_task_fair(&cfs_rq, prev);
 	clear_tsk_need_resched(prev);
 
-	//printf("prev pid %d vruntime %d next pid %d vruntime %d\n\r",prev->pid, prev->se.vruntime, next->pid, next->se.vruntime);
-
 	switch_to(next);
 	preempt_enable();
 }
 
 void schedule(void)
 {
+	current->se.vruntime += cfs_rq.min_vruntime;
 	_schedule();
 }
 
@@ -133,10 +131,9 @@ void timer_tick(void)
 
 	task_tick_fair(current);
 	enable_irq();
-	if(need_resched()) {
-		printf("z");
+	if(need_resched()) 
 		_schedule();
-	}
+	
 	disable_irq();
 }
 

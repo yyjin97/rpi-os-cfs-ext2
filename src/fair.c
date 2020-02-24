@@ -1,7 +1,6 @@
 #include "fair.h"
 #include "kernel.h"
 #include "rbtree.h"
-#include "printf.h"
 
 #define WMULT_CONST		(~0U)
 #define WMULT_SHIFT 	32
@@ -145,7 +144,6 @@ void update_min_vruntime(struct cfs_rq *cfs_rq)
 	/* 여기서 더 큰 값을 고르는 이유는 작은 값을 고른다면 언제나 min_vruntime이 동일한 값으로 유지되거나 감소하게 될 것이기 때문 
 		다른 task들의 vruntime은 지속적으로 증가하므로 여기에 맞추어 min_vruntime도 증가해야함 
 		(min_vruntime은 새로 fork된 task에 할당되어 다음에 선택될 것을 보장하며 새로운 task가 선점되기까지 비합리적으로 오랜 시간동안 실행되지 않도록 함) */
-
 }
 
 /* 프로세스의 정보를 rbtree에 넣고 tree를 조정하는 작업의 실제 처리를 담당 */
@@ -158,7 +156,6 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	/* rbtree에서 추가할 위치를 찾음 */ 
 	while(*link) {
-		//printf("while ");
 		parent = *link;
 		entry = rb_entry(parent, struct sched_entity, run_node);
 
@@ -174,7 +171,6 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	//if(leftmost) 
 	//	cfs_rq->tasks_timeline.rb_leftmost = &se->run_node;
 
-	
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color_cached(&se->run_node, &cfs_rq->tasks_timeline, leftmost); 
 
@@ -345,7 +341,7 @@ void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	printf(" exec %d ideal %d\n\r",delta_exec, ideal_runtime);
+
 	if(delta_exec > ideal_runtime) {			//time slice를 모두 소진한 경우 
 		resched_curr(curr);
 		//clear_buddies()
@@ -357,8 +353,6 @@ void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	se = __pick_first_entity(cfs_rq); 
 	delta = curr->vruntime - se->vruntime;
-
-	printf(" curr vrun %d first vrun %d\n\r", curr->vruntime, se->vruntime);
 
 	if(delta < 0)		//현재 task의 vruntime이 가장 작은 경우 
 		return;
@@ -389,9 +383,9 @@ struct sched_entity * pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entit
 {
 	struct sched_entity *left = __pick_first_entity(cfs_rq);
 
-	if(!left || (curr && entity_before(curr, left)))
+	if(!left || (curr && entity_before(curr, left))) 
 		left = curr;
-
+	
 	return left;
 }
 
@@ -449,20 +443,16 @@ void task_fork_fair(struct task_struct *p)
 	}
 	place_entity(cfs_rq, se, 1);
 
+	/* 새로 생성한 task를 enqueue
+		(linux kernel에서는 task_fork_fair함수에 이부분 존재하지 않음) */
+	enqueue_entity(cfs_rq, se);
+
 	if(sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
 		swap(curr->vruntime, se->vruntime);
 		resched_curr(curr);
 	}
 
-	//printf("entity v %u, cfs v %u\n\r",se->vruntime, cfs_rq->min_vruntime);
-
 	//se->vruntime -= cfs_rq->min_vruntime;
-
-	/* 새로 생성한 task를 enqueue
-		(linux kernel에서는 task_fork_fair함수에 이부분 존재하지 않음) */
-	__enqueue_entity(cfs_rq, se); 		
-	se->on_rq = 1;
-	cfs_rq->nr_running++;
 }
 
 /* 새로 추가하는 entity의 load값을 cfs_rq의 load에 추가 */

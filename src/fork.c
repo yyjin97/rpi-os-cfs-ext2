@@ -4,7 +4,6 @@
 #include "utils.h"
 #include "entry.h"
 #include "fair.h"
-#include "printf.h"
 
 int copy_process(unsigned long clone_flags, unsigned long fn, unsigned long arg)
 {

@@ -1,6 +1,5 @@
 #include "rbtree.h"
 #include "compiler.h"
-#include "printf.h"
 
 /* rb 노드의 color를 black으로 set */
 static inline void rb_set_black(struct rb_node *rb)
@@ -428,7 +427,6 @@ void rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root, b
     if(leftmost) 
         root->rb_leftmost = node;
 
-    printf("rb insert \n\r");
     __rb_insert(node, root);
 
 }
