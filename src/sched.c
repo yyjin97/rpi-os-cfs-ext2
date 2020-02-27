@@ -155,7 +155,7 @@ void exit_process(){
 	/*
 	for(int i =0;i<tsk->mm.kernel_pages_count;i++) {
 		free_page(tsk->mm.kernel_pages[i]);
-	}*/
+	} */
 
 	for(int i =0;i<tsk->mm.user_pages_count;i++) {
 		free_page(tsk->mm.user_pages[i].phys_addr);
