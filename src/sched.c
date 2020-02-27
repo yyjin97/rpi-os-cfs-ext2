@@ -139,7 +139,7 @@ void timer_tick(void)
 	disable_irq();
 }
 
-void exit_process(){					//CFS코드 아직 적용안된 함수*********
+void exit_process(){				
 	preempt_disable();
 	struct task_struct *tsk = current;
 	pid_t pid = current->pid;
