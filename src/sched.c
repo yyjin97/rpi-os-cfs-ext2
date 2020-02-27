@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "mm.h"
 #include "timer.h"
+#include "printf.h"
 
 static struct task_struct init_task = INIT_TASK;
 struct task_struct *current = &(init_task);
@@ -102,7 +103,8 @@ void _schedule(void)
 
 void schedule(void)
 {
-	current->se.vruntime += cfs_rq.min_vruntime;
+	if(current)
+		current->se.vruntime += cfs_rq.min_vruntime;
 	_schedule();
 }
 
@@ -139,12 +141,30 @@ void timer_tick(void)
 
 void exit_process(){					//CFS코드 아직 적용안된 함수*********
 	preempt_disable();
-	for (int i = 0; i < NR_TASKS; i++){
-		if (task[i] == current) {
-			task[i]->state = TASK_ZOMBIE;
-			break;
-		}
+	struct task_struct *tsk = current;
+	pid_t pid = current->pid;
+
+	dequeue_entity(&cfs_rq, &tsk->se);
+
+	/* current task에 대한 종료작업이 이미 수행중인 경우 수행하려던 종료작업을 중지함 */
+	if(tsk->flags & PF_EXITING) {
+		current->state = TASK_UNINTERRUPTIBLE;
+		schedule();
 	}
+
+	/*
+	for(int i =0;i<tsk->mm.kernel_pages_count;i++) {
+		free_page(tsk->mm.kernel_pages[i]);
+	}*/
+
+	for(int i =0;i<tsk->mm.user_pages_count;i++) {
+		free_page(tsk->mm.user_pages[i].phys_addr);
+	} 
+
+	tsk->state = TASK_DEAD;
+	tsk->flags = PF_EXITING;
+	printf("\r\nexit process : %d\n\r", pid);
+
 	preempt_enable();
 	schedule();
 }
