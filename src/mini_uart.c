@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "peripherals/mini_uart.h"
 #include "peripherals/gpio.h"
+#include "printf.h"
 
 void uart_send ( char c )
 {
@@ -54,6 +55,35 @@ void uart_init ( void )
 	put32(AUX_MU_CNTL_REG,3);               //Finally, enable transmitter and receiver
 }
 
+void gets(char *str, int size)
+{
+	for(int i = 0; i < size; i++) {
+		str[i] = uart_recv();
+		if(str[i] == 127) {				//backspace를 입력한 경우 
+			str[i] = 0;
+			if(i-1 >= 0) {
+				str[i] = 0;
+				i--;
+			}
+			i--;
+			uart_send(27); 			//아스키 코드 27 91 68 == 왼쪽방향키
+			uart_send(91);
+			uart_send(68);
+			uart_send(32);			//아스키 코드 32 == space바
+			uart_send(27);
+			uart_send(91);
+			uart_send(68);
+			continue;
+		}
+		uart_send(str[i]);
+		if(str[i] == 13) {				//enter를 입력한 경우 
+			str[i] = 0;
+			uart_send(13);
+			uart_send(10);
+			return;	
+		}
+	}
+}
 
 // This function is required by printf function
 void putc ( void* p, char c)

@@ -23,5 +23,22 @@ typedef int                 bool;
 #define false 0
 #define true 1
 
+#define BYTE				unsigned char
+#define WORD				unsigned short
+#define DWORD				unsigned int
+#define QWORD				unsigned long long int
+#define SHORT				short
+#define USHORT				unsigned short
+#define INT					int
+#define UINT				unsigned int
+#define INT8				char
+#define UINT8				unsigned char
+#define INT16				SHORT
+#define UINT16				USHORT
+#define INT32				INT
+#define UINT32				UINT
+#define INT64				long long int
+#define UINT64				unsigned INT64
+
 #endif /* __ASSEMBLER__ */
 #endif /* _TYPES_H */

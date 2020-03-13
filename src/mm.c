@@ -1,7 +1,9 @@
 #include "mm.h"
 #include "arm/mmu.h"
+#include "printf.h"
 
-static unsigned short mem_map [ PAGING_PAGES ] = {0,};
+//static unsigned short mem_map [ PAGING_PAGES ] = {0,};
+static unsigned short mem_map [ 10000 ] = {0,};
 
 unsigned long allocate_kernel_page() {
 	unsigned long page = get_free_page();
@@ -34,7 +36,8 @@ unsigned long get_free_page()
 }
 
 void free_page(unsigned long p){
-	mem_map[(p - LOW_MEMORY) / PAGE_SIZE] = 0;
+	int n = ((p - LOW_MEMORY) / PAGE_SIZE);
+	mem_map[n] = 0;
 }
 
 void map_table_entry(unsigned long *pte, unsigned long va, unsigned long pa) {
@@ -113,4 +116,12 @@ int do_mem_abort(unsigned long addr, unsigned long esr) {
 		return 0;
 	}
 	return -1;
+}
+
+void *memset (void *dest, int val, int len)
+{
+  unsigned char *ptr = dest;
+  while (len-- > 0)
+    *ptr++ = val;
+  return dest;
 }
