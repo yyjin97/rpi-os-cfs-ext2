@@ -1,6 +1,3 @@
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <memory.h>
 
 #include "ext2_shell.h"
 #include "printf.h"
@@ -79,7 +76,7 @@ SHELL_FILE_OPERATIONS g_file =
 };
 
 //static SHELL_FS_OPERATIONS   g_fsOprs =
-SHELL_FS_OPERATIONS   g_fsOprs =
+SHELL_FS_OPERATIONS g_fsOprs =
 {
 	fs_ls,
 	fs_read_dir,
@@ -160,7 +157,7 @@ int ext2_add_shell_list(EXT2_FILESYSTEM* fs, void* list, EXT2_NODE* entry)
 
 	ext2_entry_to_shell_entry(fs, entry, &s_entry);
 
-	memcpy(&s_item->entry, &s_entry, sizeof(SHELL_ENTRY));
+	memcpy((unsigned long)&s_item->entry, (unsigned long)&s_entry, (unsigned long)sizeof(SHELL_ENTRY));
 
 	if(add_entry_list(list, s_item) < 0) {
 		printf("add entry list error\n\r");
@@ -184,7 +181,7 @@ int	fs_df( DISK_OPERATIONS* disk, SHELL_FILESYSTEM* fs)
 
 	ZeroMemory(block, sizeof(block));
 	block_read(disk, 0, 0, block);
-	memcpy(&sb, block, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&sb, (unsigned long)block, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	blocks = sb.block_count;
 	used = sb.block_count - sb.free_block_count;
@@ -201,7 +198,7 @@ int	fs_df( DISK_OPERATIONS* disk, SHELL_FILESYSTEM* fs)
 	return EXT2_SUCCESS;
 }
 
-int fs_mv(DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, SHELL_ENTRY* parent, char* name, char* dir)
+int fs_mv(DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, SHELL_ENTRY* parent, const char* name, const char* dir)
 {
 	SHELL_ENTRY shell_dir;
 	EXT2_NODE entry;
@@ -266,7 +263,7 @@ int fs_cat(DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, SHELL_ENTRY* dir,
 	printf("\n\r");
 
 	//free(buff);
-	free_page(buff);
+	free_page((unsigned long)buff);
 
 	return EXT2_SUCCESS;
 }
@@ -320,7 +317,7 @@ int	fs_create(DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, const SHELL_EN
 
 int shell_entry_to_ext2_entry(const SHELL_ENTRY* shell_entry, EXT2_NODE* ext2_entry)
 {
-	memcpy(ext2_entry, shell_entry->pdata, sizeof(EXT2_NODE));
+	memcpy((unsigned long)ext2_entry, (unsigned long)shell_entry->pdata, (unsigned long)sizeof(EXT2_NODE));
 
 	return EXT2_SUCCESS;
 }
@@ -341,7 +338,7 @@ int ext2_entry_to_shell_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* ext2_entry, 
 	shell_entry->permition = inode.mode & 0x1ff;
 	shell_entry->size = inode.size;
 
-	memcpy(shell_entry->pdata, ext2_entry, sizeof(EXT2_NODE));
+	memcpy((unsigned long)shell_entry->pdata, (unsigned long)ext2_entry, (unsigned long)sizeof(EXT2_NODE));
 		
 	return EXT2_SUCCESS;
 }
@@ -355,7 +352,8 @@ int fs_lookup(DISK_OPERATIONS* disk, const SHELL_ENTRY* parent, SHELL_ENTRY* ent
 
 	shell_entry_to_ext2_entry(parent, &EXT2Parent);
 
-	if (result = ext2_lookup(&EXT2Parent, name, &EXT2Entry)) return result;
+	if ((result = ext2_lookup(&EXT2Parent, name, &EXT2Entry))) 
+		return result;
 
 	ext2_entry_to_shell_entry(EXT2Parent.fs, &EXT2Entry, entry);
 
@@ -428,7 +426,7 @@ int fs_mkdir(DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, const SHELL_ENT
 	return EXT2_SUCCESS;
 }
 
-int fs_rmdir( DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, SHELL_ENTRY *dir, char *name)
+int fs_rmdir( DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, const SHELL_ENTRY *dir, const char *name)
 {
 	SHELL_ENTRY entry;
 	EXT2_NODE node;
@@ -472,7 +470,7 @@ int fs_rmdir( DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, SHELL_ENTRY *d
 	
 }
 
-int fs_remove( DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, SHELL_ENTRY* dir, char* name )
+int fs_remove( DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, const SHELL_ENTRY* dir, const char* name )
 {
 	SHELL_ENTRY entry;
 	EXT2_NODE ext2_entry;
@@ -603,9 +601,8 @@ int print_entry_long(SHELL_ENTRY_LIST* list)
 		get_inode(entry.fs->disk, &entry.fs->sb, entry.entry.inode, &inode);
 		print_per(item);
 		printf(" %3u %4x %4x %5u ", inode.links_count, inode.uid, inode.gid, inode.size);
-		//memcpy(time, ctime(&inode.mtime), 25);
-		time[0] = NULL;
-		time[24] = NULL;
+		time[0] = '\0';
+		time[24] = '\0';
 		printf("%s ", time);
 		printf("%s \n\r", entry.entry.name);
 		item = item->next;

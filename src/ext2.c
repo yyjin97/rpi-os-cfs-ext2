@@ -107,14 +107,14 @@ int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, cons
 
 	 /* 쓰고자 하는 길이가 블럭 사이즈에서 오프셋을 제외한 길이 보다 작을 때 */
 	  if(length<(MAX_BLOCK_SIZE-beginoffset)) {
-		memcpy(blockBuffer+beginoffset,buffer,length);
+		memcpy((unsigned long)blockBuffer+beginoffset,(unsigned long)buffer,(unsigned long)length);
 
 	  block_write(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);
 	  return EXT2_SUCCESS;
       }
 
 	  /* 쓰고자 하는 길이가 블럭사이즈에서 오프셋을 제외한 길이보다 크거나 같을 때  */
-	  memcpy(blockBuffer+beginoffset,buffer,MAX_BLOCK_SIZE-beginoffset);
+	  memcpy((unsigned long)(blockBuffer+beginoffset),(unsigned long)buffer,(unsigned long)(MAX_BLOCK_SIZE-beginoffset));
 	  block_write(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);	
 
 	  buffer=buffer+MAX_BLOCK_SIZE-beginoffset;
@@ -127,12 +127,12 @@ int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, cons
 	  block_read(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);
       /* 쓰고자 하는 크기(length)가 블록 크기보다 작을때 */
 	  if(length<MAX_BLOCK_SIZE){
-	    memcpy(blockBuffer,buffer,length);
+	    memcpy((unsigned long)blockBuffer,(unsigned long)buffer,(unsigned long)length);
 		block_write(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);
 		return EXT2_SUCCESS;
 	  }
      /* 쓰고자 하는 크기(length)가 블록 크기보다 크거나 같을 때 */
-	  memcpy(blockBuffer,buffer,MAX_BLOCK_SIZE);
+	  memcpy((unsigned long)blockBuffer,(unsigned long)buffer,(unsigned long)MAX_BLOCK_SIZE);
  	  block_write(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);
      
 	  if(length==MAX_BLOCK_SIZE){return EXT2_SUCCESS;}
@@ -148,7 +148,7 @@ int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, cons
 		ZeroMemory(blockBuffer, sizeof(blockBuffer));
 		block_num=wb_num[offset_block+i];
 	
-		memcpy(blockBuffer,buffer,MAX_BLOCK_SIZE);
+		memcpy((unsigned long)blockBuffer,(unsigned long)buffer,(unsigned long)MAX_BLOCK_SIZE);
 	  
 		block_write(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);
 		buffer=buffer+MAX_BLOCK_SIZE;
@@ -160,7 +160,7 @@ int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, cons
 	  ZeroMemory(blockBuffer, sizeof(blockBuffer));
       block_num = wb_num[offset_block+block];
 
-      memcpy(blockBuffer,buffer,endoffset);
+      memcpy((unsigned long)blockBuffer,(unsigned long)buffer,(unsigned long)endoffset);
 	  
 	  block_write(file->fs->disk,block_num/blockPerGroup,block_num%blockPerGroup,blockBuffer);
 	}
@@ -209,7 +209,7 @@ int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, char*
 		g_num = block_num[b]/blockPerGroup;
 		b_num = block_num[b]%blockPerGroup;
 		block_read(file->fs->disk, g_num, b_num, block);
-		memcpy(buffer, block+b_offset, length);
+		memcpy((unsigned long)buffer, (unsigned long)block+b_offset, (unsigned long)length);
 		return EXT2_SUCCESS;
 	}
 
@@ -218,7 +218,7 @@ int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, char*
 		g_num = block_num[b]/blockPerGroup;
 		b_num = block_num[b]%blockPerGroup;
 		block_read(file->fs->disk, g_num, b_num, block);			//offset이 존재하는 block을 read해옴
-		memcpy(buffer, block+b_offset, MAX_BLOCK_SIZE-b_offset);	//offset이후부터 block단위까지 read함
+		memcpy((unsigned long)buffer, (unsigned long)(block+b_offset), (unsigned long)MAX_BLOCK_SIZE-b_offset);	//offset이후부터 block단위까지 read함
 		buffer += (MAX_BLOCK_SIZE-b_offset);
 		b++;
 
@@ -227,7 +227,7 @@ int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, char*
 			g_num = block_num[b]/blockPerGroup;
 			b_num = block_num[b]%blockPerGroup;
 			block_read(file->fs->disk, g_num, b_num, block);
-			memcpy(buffer, block, MAX_BLOCK_SIZE);
+			memcpy((unsigned long)buffer, (unsigned long)block, (unsigned long)MAX_BLOCK_SIZE);
 			b++;
 			buffer += MAX_BLOCK_SIZE;
 		}
@@ -238,7 +238,7 @@ int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, char*
 			g_num = block_num[b]/blockPerGroup;
 			b_num = block_num[b]%blockPerGroup;
 			block_read(file->fs->disk, g_num, b_num, block);
-			memcpy(buffer, block, (length-(MAX_BLOCK_SIZE-b_offset))%MAX_BLOCK_SIZE);
+			memcpy((unsigned long)buffer, (unsigned long)block, (unsigned long)((length-(MAX_BLOCK_SIZE-b_offset))%MAX_BLOCK_SIZE));
 		}
 		
 	}
@@ -261,7 +261,7 @@ int ext2_format(DISK_OPERATIONS* disk)
 
 	for(int g_num = 0; g_num < NUMBER_OF_GROUPS; g_num++ ){		//모든 block group에 대해 super block을 write
 		ZeroMemory(block, sizeof(block));
-		memcpy(block, &sb, sizeof(EXT2_SUPER_BLOCK));
+		memcpy((unsigned long)block, (unsigned long)&sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 		block_write(disk, g_num, 0, block);
 		sb.block_group_number = g_num;
 	}
@@ -283,7 +283,7 @@ int ext2_format(DISK_OPERATIONS* disk)
 				gd.free_blocks_count += (UINT16)(sb.free_block_count % NUMBER_OF_GROUPS);
 			}
 
-			memcpy(block + g_num*sizeof(EXT2_GROUP_DESCRIPTOR), &gd, sizeof(EXT2_GROUP_DESCRIPTOR));
+			memcpy((unsigned long)(block + g_num*sizeof(EXT2_GROUP_DESCRIPTOR)), (unsigned long)&gd, (unsigned long)sizeof(EXT2_GROUP_DESCRIPTOR));
 		}
 
 		for(int gn = 0; gn < NUMBER_OF_GROUPS; gn++) {		//group descriptor table의 블록을 모든 group의 disk에 write
@@ -341,12 +341,11 @@ int ext2_format(DISK_OPERATIONS* disk)
 int block_write(DISK_OPERATIONS* disk, SECTOR group, SECTOR block, BYTE* data)  //'group'번째 그룹의 'block'번째 블록에 data의 내용을 write
 {
 	SECTOR sectorPerBlock = MAX_BLOCK_SIZE >> 9;
-	SECTOR sectorPerGroup = (NUMBER_OF_SECTORS - 2) / NUMBER_OF_GROUPS;
 	BYTE sector[MAX_SECTOR_SIZE];
 
 	for(int s_num = 0; s_num < sectorPerBlock; s_num++){
 		ZeroMemory(sector, sizeof(sector));
-		memcpy(sector, data + (MAX_SECTOR_SIZE*s_num), sizeof(sector));
+		memcpy((unsigned long)sector, (unsigned long)(data + (MAX_SECTOR_SIZE*s_num)), (unsigned long)sizeof(sector));
 		sector_write(disk, group, block, s_num, sector);			//sector 단위로 read하는 함수
 	}
 
@@ -364,7 +363,7 @@ int sector_write(DISK_OPERATIONS* disk, SECTOR group, SECTOR block, SECTOR secto
 	realsector = 2 + group*sectorPerGroup + block*sectorPerBlock + sector_num;		//해당 sector의 파일시스템 전체에서 sector변호를 구함
 
 	ZeroMemory(sector, sizeof(sector));
-	memcpy(sector, data, sizeof(sector));
+	memcpy((unsigned long)sector, (unsigned long)data, (unsigned long)sizeof(sector));
 	disk->write_sector(disk, realsector, sector);
 
 	return EXT2_SUCCESS;
@@ -378,7 +377,7 @@ int block_read(DISK_OPERATIONS* disk, SECTOR group, SECTOR block, BYTE* data) 	/
 	for(int s_num = 0; s_num < sectorPerBlock; s_num++){
 		ZeroMemory(sector, sizeof(sector));
 		sector_read(disk, group, block, s_num, sector);					//sector 단위로 read하는 함수
-		memcpy(data + (MAX_SECTOR_SIZE*s_num), sector, sizeof(sector));
+		memcpy((unsigned long)(data + (MAX_SECTOR_SIZE*s_num)), (unsigned long)sector, (unsigned long)sizeof(sector));
 	}
 	return EXT2_SUCCESS;
 }
@@ -394,7 +393,7 @@ int sector_read(DISK_OPERATIONS* disk, SECTOR group, SECTOR block, SECTOR sector
 
 	ZeroMemory(sector,sizeof(sector));
 	disk->read_sector(disk, realsector, sector);		
-	memcpy(data, sector, sizeof(sector));
+	memcpy((unsigned long)data, (unsigned long)sector, (unsigned long)sizeof(sector));
 
 	return EXT2_SUCCESS;
 }
@@ -458,14 +457,14 @@ int fill_node_struct(EXT2_FILESYSTEM* fs, EXT2_NODE* root)		//root directory의 
 	block_read(fs->disk, 0, block_num[0], block);		//root directory의 data block을 읽어옴
 
 	entry = (EXT2_DIR_ENTRY *)block;
-	memcpy(&root->entry, entry, sizeof(EXT2_DIR_ENTRY));
+	memcpy((unsigned long)(&root->entry), (unsigned long)entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 
 	root->fs = fs;
 
 	location.group = 0;				//root directory의 location 초기화 
 	location.block = fs->sb.first_data_block_each_group;
 	location.offset = 0;
-	memcpy(&root->location, &location, sizeof(EXT2_DIR_ENTRY_LOCATION));
+	memcpy((unsigned long)(&root->location), (unsigned long)&location, (unsigned long)sizeof(EXT2_DIR_ENTRY_LOCATION));
 
 	return EXT2_SUCCESS;
 }
@@ -570,7 +569,6 @@ int create_root(DISK_OPERATIONS* disk, EXT2_SUPER_BLOCK * sb)
 	inode.blocks = 1;					
 	inode.block[0] = sb->first_data_block_each_group;  
 	inode.links_count = 2;
-	//time(&inode.mtime);
 
 	set_inode(disk, sb, 2, &inode);
 	set_inode_bitmap(disk, 2, 1);
@@ -586,7 +584,7 @@ int create_root(DISK_OPERATIONS* disk, EXT2_SUPER_BLOCK * sb)
 
 	/* super block 수정 */
 	ZeroMemory(block, sizeof(block));
-	memcpy(block, sb, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)block, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 	sb->free_block_count -= 1;
 	block_write(disk, 0, 0, block);
 
@@ -610,7 +608,7 @@ int get_inode(DISK_OPERATIONS* disk, EXT2_SUPER_BLOCK* sb, const UINT32 inode, I
 	block_read(disk, inode_group, inode_block, block);
 
 	inode_read = (INODE *)block;
-	memcpy(inodeBuffer, inode_read + inode_num, sizeof(INODE));
+	memcpy((unsigned long)inodeBuffer, (unsigned long)(inode_read + inode_num), (unsigned long)sizeof(INODE));
 
 	return EXT2_SUCCESS;
 }
@@ -630,14 +628,14 @@ int set_inode(DISK_OPERATIONS* disk, EXT2_SUPER_BLOCK* sb, const UINT32 inode, I
 
 	ZeroMemory(block, sizeof(block));
 	block_read(disk, inode_group, inode_block, block);
-	memcpy(block + (inode_num * sizeof(INODE)), inodeBuffer, sizeof(INODE));
+	memcpy((unsigned long)(block + (inode_num * sizeof(INODE))), (unsigned long)inodeBuffer, (unsigned long)sizeof(INODE));
 
 	block_write(disk, inode_group, inode_block, block);
 
 	return EXT2_SUCCESS;
 }
 
-int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry) //파일이름을 받아서 그파일을 만든다 한파일당 사이즈 block 1개 
+int ext2_create(EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEntry) //파일이름을 받아서 그파일을 만든다 한파일당 사이즈 block 1개 
 {
 	if ((parent->fs->gd.free_inodes_count) == 0) return EXT2_ERROR;
 
@@ -655,7 +653,7 @@ int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry) //파�
 	retEntry->entry.name_len = strlen((char *)name);
 	retEntry->fs = parent->fs;
 
-	if(ext2_lookup(parent,name,retEntry) == EXT2_SUCCESS) {
+	if(ext2_lookup(parent, (const char *)name,retEntry) == EXT2_SUCCESS) {
 		printf("%s file name already exists\n\r", entryName);
 		return EXT2_ERROR;		//lookup 에서 해당 파일이름의 엔트리가 parent에 존재하는 지 검사
 	}
@@ -674,7 +672,10 @@ int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry) //파�
 		b_num = alloc_free_block(parent->fs, g);		//새로운 block을 할당
            
 		if(b_num < 0) return EXT2_ERROR;
-		else if(b_num == 0) g = (++g)%NUMBER_OF_GROUPS;	//해당 group에 free block이 존재하지 않는 경우 
+		else if(b_num == 0) {
+			g++;
+			g = g % NUMBER_OF_GROUPS;	//해당 group에 free block이 존재하지 않는 경우 
+		}
 		else  {									//해당 group에서 free block을 찾은 경우 
 			g_num = g;
 		    break;
@@ -695,9 +696,7 @@ int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry) //파�
 	file_inode.block[0] = b_num;
 	file_inode.size = 0;
 	file_inode.links_count = 1;
-	//time(&file_inode.mtime);
 	set_inode(parent->fs->disk,&parent->fs->sb,i_num,&file_inode);
-	//get_inode(parent->fs->disk, &parent->fs->sb,retEntry->entry.inode, &file_inode);
 	retEntry->entry.inode = i_num;
 	
 	if(insert_entry(parent->fs,parent,&retEntry->entry,&retEntry->location) == EXT2_ERROR)return EXT2_ERROR;
@@ -708,8 +707,8 @@ int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry) //파�
 	block_read(parent->fs->disk, 0, 0, block);
 	sb->free_inode_count -= 1;
 	block_write(parent->fs->disk, 0, 0, block);
-	memcpy(&parent->fs->sb, sb, sizeof(EXT2_SUPER_BLOCK));
-	memcpy(&retEntry->fs->sb, sb, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&parent->fs->sb, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&retEntry->fs->sb, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	/* group descriptor 수정 */
 	ZeroMemory(block, sizeof(block));
@@ -718,7 +717,7 @@ int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry) //파�
 	gd += (g_num % (MAX_BLOCK_SIZE/sizeof(EXT2_GROUP_DESCRIPTOR)));
 	gd->free_inodes_count -= 1;
 	block_write(parent->fs->disk, 0, 1 + (g_num/(MAX_BLOCK_SIZE/sizeof(EXT2_GROUP_DESCRIPTOR))), block);
-	memcpy(&retEntry->fs->gd, gd, sizeof(EXT2_GROUP_DESCRIPTOR));
+	memcpy((unsigned long)&retEntry->fs->gd, (unsigned long)gd, (unsigned long)sizeof(EXT2_GROUP_DESCRIPTOR));
 
 	return EXT2_SUCCESS;
 }
@@ -749,14 +748,14 @@ int read_superblock(EXT2_FILESYSTEM* fs)
 
 	ZeroMemory(sector, sizeof(sector));
 	sector_read(fs->disk, 0, SUPER_BLOCK, 0, sector);		//superblock을 disk에서 읽어옴 
-	memcpy(&fs->sb, sector, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&fs->sb, (unsigned long)sector, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	if(fs->sb.magic_signature != 0xEF53)					//super block의 magic number를 확인 
 		return EXT2_ERROR;
 
 	ZeroMemory(sector, sizeof(sector));
 	sector_read(fs->disk, 0, GROUP_DES, 0, sector);				//group descriptor를 disk에서 읽어옴 
-	memcpy(&fs->gd, sector, sizeof(EXT2_GROUP_DESCRIPTOR));		//0번 group의 group descriptor를 file system에 저장
+	memcpy((unsigned long)&fs->gd, (unsigned long)sector, (unsigned long)sizeof(EXT2_GROUP_DESCRIPTOR));		//0번 group의 group descriptor를 file system에 저장
 
 	return EXT2_SUCCESS;
 }
@@ -790,7 +789,7 @@ int ext2_lookup(EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEntry)
 		do {
 			if(strcmp((const char *)entry->name, (const char *)entryName) == 0)
 			{
-				memcpy(&retEntry->entry, entry, sizeof(EXT2_DIR_ENTRY));
+				memcpy((unsigned long)&retEntry->entry, (unsigned long)entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
                 retEntry->location.group = data_group;
 			    retEntry->location.block = data_block;
 				retEntry->location.offset = offset * sizeof(EXT2_DIR_ENTRY);
@@ -861,7 +860,7 @@ int ext2_read_dir(EXT2_NODE* dir, EXT2_NODE_ADD adder, void* list)
 		entry = (EXT2_DIR_ENTRY *)block;
 
 		do {
-			memcpy(&file.entry, entry, sizeof(EXT2_DIR_ENTRY));
+			memcpy((unsigned long)&file.entry, (unsigned long)entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 			file.location.group = data_group;
 			file.location.block = data_block;
 			file.location.offset = offset*sizeof(EXT2_DIR_ENTRY);
@@ -941,14 +940,14 @@ int ext2_mkdir(const EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEnt
 	strcpy((char *)entry.name, (char *)dot);
 	entry.name_len = strlen(dot);
 	
-	memcpy(block, &entry, sizeof(EXT2_DIR_ENTRY));
+	memcpy((unsigned long)block, (unsigned long)&entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 
 	/* dotdot entry */
 	entry.inode = parent->entry.inode;
 	strcpy((char *)entry.name, (char *)dotdot);
 	entry.name_len = strlen(dotdot);
 
-	memcpy(block + sizeof(EXT2_DIR_ENTRY), &entry, sizeof(EXT2_DIR_ENTRY));
+	memcpy((unsigned long)(block + sizeof(EXT2_DIR_ENTRY)), (unsigned long)&entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 	block_write(parent->fs->disk, g_num, b_num, block);
 
 	/* new directory entry */
@@ -958,8 +957,8 @@ int ext2_mkdir(const EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEnt
 
 	insert_entry(parent->fs, parent, &entry, &location);
 
-	memcpy(&retEntry->entry, &entry, sizeof(EXT2_DIR_ENTRY));
-	memcpy(&retEntry->location, &location, sizeof(EXT2_DIR_ENTRY_LOCATION));	
+	memcpy((unsigned long)&retEntry->entry, (unsigned long)&entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
+	memcpy((unsigned long)&retEntry->location, (unsigned long)&location, (unsigned long)sizeof(EXT2_DIR_ENTRY_LOCATION));	
 
 	/* superblock 수정 */
 	ZeroMemory(block, sizeof(block));
@@ -967,8 +966,8 @@ int ext2_mkdir(const EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEnt
 	block_read(parent->fs->disk, 0, 0, block);
 	sb->free_inode_count -= 1;
 	block_write(parent->fs->disk, 0, 0, block);
-	memcpy(&parent->fs->sb, sb, sizeof(EXT2_SUPER_BLOCK));
-	memcpy(&retEntry->fs->sb, sb, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&parent->fs->sb, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&retEntry->fs->sb, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	/* group descriptor 수정 */
 	ZeroMemory(block, sizeof(block));
@@ -978,7 +977,7 @@ int ext2_mkdir(const EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEnt
 	gd->free_inodes_count -= 1;
 	gd->directories_count += 1;
 	block_write(parent->fs->disk, 0, 1 + (g_num/(MAX_BLOCK_SIZE/sizeof(EXT2_GROUP_DESCRIPTOR))), block);
-	memcpy(&retEntry->fs->gd, gd, sizeof(EXT2_GROUP_DESCRIPTOR));
+	memcpy((unsigned long)&retEntry->fs->gd, (unsigned long)gd, (unsigned long)sizeof(EXT2_GROUP_DESCRIPTOR));
 
 	retEntry->fs = parent->fs;
 
@@ -997,7 +996,7 @@ int insert_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* parent, EXT2_DIR_ENTRY* e
 
 	get_data_block_at_inode(fs, &p_inode, parent->entry.inode, b_num);
 
-	if(p_inode.mode & 0x4000 == 0) return EXT2_ERROR;	//parent가 directory 파일인지 확인 
+	if((p_inode.mode & 0x4000) == 0) return EXT2_ERROR;	//parent가 directory 파일인지 확인 
 
 	entry_group = b_num[p_inode.blocks - 1] / fs->sb.block_per_group;
 	entry_block = b_num[p_inode.blocks - 1] % fs->sb.block_per_group;
@@ -1013,7 +1012,8 @@ int insert_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* parent, EXT2_DIR_ENTRY* e
 				entry_group = g;
 				break;
 			}
-			g = (++g)%NUMBER_OF_GROUPS;
+			g++;
+			g = g % NUMBER_OF_GROUPS;
 		} while (g != entry_group);
 
 		if(entry_block == 0) {		//free block이 존재하지 않는 경우 
@@ -1027,7 +1027,6 @@ int insert_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* parent, EXT2_DIR_ENTRY* e
 
 	else {	
 		p_inode.size += sizeof(EXT2_DIR_ENTRY);
-		//time(&p_inode.mtime);
 		set_inode(fs->disk, &fs->sb, parent->entry.inode, &p_inode);
 	}
 
@@ -1036,8 +1035,8 @@ int insert_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* parent, EXT2_DIR_ENTRY* e
 	location->offset = entry_offset;
 
 	ZeroMemory(block, sizeof(block));
-	block_read(fs->disk, entry_group, entry_block, block);
-	memcpy(block+entry_offset, entry, sizeof(EXT2_DIR_ENTRY));
+	block_read(fs->disk, entry_group, entry_block, (unsigned char *)block);
+	memcpy((unsigned long)(block+entry_offset), (unsigned long)entry, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 	block_write(fs->disk, entry_group, entry_block, block);
 
 	return EXT2_SUCCESS;
@@ -1095,7 +1094,7 @@ int get_inode_block(DISK_OPERATIONS* disk, EXT2_SUPER_BLOCK* sb, UINT32 i_num, U
 		b_indirect = block[temp] % blockPerGroup;
 
 		ZeroMemory(block, sizeof(block));
-		block_read(disk, g_indirect, b_indirect, block);
+		block_read(disk, g_indirect, b_indirect, (unsigned char *)block);
 		temp = (b_num - 12 - indir_b_num)%indir_b_num;
 		return block[temp];
 	}
@@ -1141,12 +1140,11 @@ int set_inode_block(EXT2_FILESYSTEM* fs, UINT32 i_num, UINT32 b_num)
 
 	ZeroMemory(block, sizeof(block));
 	block_read(fs->disk, 0, 0, (unsigned char *)block);
-	memcpy(&sb, block, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&sb, (unsigned long)block, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	if(blocks < 12) {		//data block의 개수가 12개 미만인 경우 
 		inode.block[blocks] = b_num;
 		inode.blocks = inode.blocks + 1;
-		//time(&inode.mtime);
 		if((inode.mode & 0x4000) != 0)
 			inode.size += sizeof(EXT2_DIR_ENTRY);
 
@@ -1163,7 +1161,10 @@ int set_inode_block(EXT2_FILESYSTEM* fs, UINT32 i_num, UINT32 b_num)
 				b_triple = alloc_free_block(fs, g_triple);
 
 				if(b_triple < 0) return EXT2_ERROR;
-				else if(b_triple == 0) g_triple = (++g_triple)%NUMBER_OF_GROUPS;
+				else if(b_triple == 0) {
+					g_triple++;
+					g_triple = g_triple % NUMBER_OF_GROUPS;
+				}
 				else break;
 
 			} while(g_triple != i_group);
@@ -1191,7 +1192,10 @@ int set_inode_block(EXT2_FILESYSTEM* fs, UINT32 i_num, UINT32 b_num)
 				b_double = alloc_free_block(fs, g_double);
 
 				if(b_double < 0) return EXT2_ERROR;
-				else if(b_double == 0) g_double = (++g_double)%NUMBER_OF_GROUPS;
+				else if(b_double == 0) {
+					g_double++;
+					g_double = g_double % NUMBER_OF_GROUPS;
+				}
 				else break;
 
 			} while(g_double != g_triple);
@@ -1238,7 +1242,10 @@ int set_inode_block(EXT2_FILESYSTEM* fs, UINT32 i_num, UINT32 b_num)
 				if(b_indirect < 0) {
 					return EXT2_ERROR;
 				}
-				else if(b_indirect == 0) g_indirect = (++g_indirect)%NUMBER_OF_GROUPS;
+				else if(b_indirect == 0) {
+					g_indirect++;
+					g_indirect = g_indirect % NUMBER_OF_GROUPS;
+				}
 				else break;
 			
 			} while(g_indirect != g_double);
@@ -1311,7 +1318,6 @@ int set_inode_block(EXT2_FILESYSTEM* fs, UINT32 i_num, UINT32 b_num)
 	}
 
 	inode.blocks = inode.blocks + 1;
-	//time(&inode.mtime);
 	if((inode.mode & 0x4000) != 0)
 		inode.size += sizeof(EXT2_DIR_ENTRY);
 
@@ -1392,7 +1398,7 @@ int alloc_free_block(const EXT2_FILESYSTEM* fs, UINT32 group)
 	return b_num;
 }
 
-int alloc_free_inode(EXT2_FILESYSTEM* fs, EXT2_NODE* parent)
+int alloc_free_inode(EXT2_FILESYSTEM* fs, const EXT2_NODE* parent)
 {
 	EXT2_GROUP_DESCRIPTOR* gd;
 	BYTE block[MAX_BLOCK_SIZE];
@@ -1475,7 +1481,7 @@ int release_inode(EXT2_FILESYSTEM* fs, EXT2_NODE* entry)		//entry의 inode와 en
 	sb->free_block_count += blocks;
 	sb->free_inode_count += 1;
 	block_write(fs->disk, 0, 0, block);
-	memcpy(&fs->sb, sb, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&fs->sb, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	/* group descriptor 수정 */
 	for(int g = 0; g < NUMBER_OF_GROUPS; g++) {
@@ -1490,7 +1496,7 @@ int release_inode(EXT2_FILESYSTEM* fs, EXT2_NODE* entry)		//entry의 inode와 en
 			gd->directories_count -= 1;
 		}
 		block_write(fs->disk, 0, 1 + (g/(MAX_BLOCK_SIZE/sizeof(EXT2_GROUP_DESCRIPTOR))), block);
-		memcpy(&fs->gd, gd, sizeof(EXT2_GROUP_DESCRIPTOR));
+		memcpy((unsigned long)&fs->gd, (unsigned long)gd, (unsigned long)sizeof(EXT2_GROUP_DESCRIPTOR));
 	}
 
 	return EXT2_SUCCESS;
@@ -1518,7 +1524,7 @@ int release_dir_entry(EXT2_FILESYSTEM* fs, EXT2_NODE* parent, EXT2_NODE* entry)
 	block_read(fs->disk, g_num, b_num, block);
 	dir_p = (EXT2_DIR_ENTRY *)block;
 	dir_p = dir_p + (offset/sizeof(EXT2_DIR_ENTRY));
-	memcpy(&dir, dir_p, sizeof(EXT2_DIR_ENTRY));
+	memcpy((unsigned long)&dir, (unsigned long)dir_p, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 	if((offset/sizeof(EXT2_DIR_ENTRY)) == 0) {			//마지막 entry가 block내에서 첫 entry인 경우 block을 해제 
 		release_block(fs, &p_inode, block_num, 1, group);
 		increase_free_block(fs, group);
@@ -1536,10 +1542,10 @@ int release_dir_entry(EXT2_FILESYSTEM* fs, EXT2_NODE* parent, EXT2_NODE* entry)
 
 	if(dir_p->inode == dir.inode) {						//삭제하려는 entry가 마지막 entry인 경우 읽어온 마지막 entry를 DIR_ENTRY_NO_MORE로 변경 후에 덮어씀
 		dir.name[0] = DIR_ENTRY_NO_MORE;
-		dir.inode = NULL;
-		dir.name_len = NULL;
+		dir.inode = 0;
+		dir.name_len = 0;
 	}
-	memcpy(dir_p, &dir, sizeof(EXT2_DIR_ENTRY));
+	memcpy((unsigned long)dir_p, (unsigned long)&dir, (unsigned long)sizeof(EXT2_DIR_ENTRY));
 	block_write(fs->disk, entry->location.group, entry->location.block, block);
 
 	/* parent directory의 inode 수정 */
@@ -1665,7 +1671,7 @@ int increase_free_block(EXT2_FILESYSTEM* fs, UINT32* group)
 	sb->free_block_count += blocks;
 	
 	block_write(fs->disk, 0, 0, block);
-	memcpy(&fs->sb, sb, sizeof(EXT2_SUPER_BLOCK));
+	memcpy((unsigned long)&fs->sb, (unsigned long)sb, (unsigned long)sizeof(EXT2_SUPER_BLOCK));
 
 	/* group descriptor 수정 */
 	for(int g = 0; g < NUMBER_OF_GROUPS; g++) {
@@ -1677,7 +1683,7 @@ int increase_free_block(EXT2_FILESYSTEM* fs, UINT32* group)
 		gd->free_blocks_count += group[g];
 
 		block_write(fs->disk, 0, 1 + (g/(MAX_BLOCK_SIZE/sizeof(EXT2_GROUP_DESCRIPTOR))), block);
-		memcpy(&fs->gd, gd, sizeof(EXT2_GROUP_DESCRIPTOR));
+		memcpy((unsigned long)&fs->gd, (unsigned long)gd, (unsigned long)sizeof(EXT2_GROUP_DESCRIPTOR));
 	}
 
 	return EXT2_SUCCESS;

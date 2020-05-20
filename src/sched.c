@@ -19,12 +19,7 @@ bool need_resched(void)
 
 void update_rq_clock(struct cfs_rq *cfs_rq)
 {
-	s64 delta;
-
-	delta = timer_clock() - cfs_rq->clock_task;
-	if(delta < 0)
-		return;
-	cfs_rq->clock_task += delta;
+	cfs_rq->clock_task = timer_clock();
 }
 
 /* 현재 task에 resched 요청 플래그를 설정함 */
@@ -34,9 +29,6 @@ void resched_curr(struct sched_entity *se)
 
 	if(test_tsk_need_resched(curr))
 		return;
-
-	/* curr의 런큐가 현재 사용중인 cpu인지 확인하고 polling signal?을 보내는 부분 제외
-		(현재 RPI OS version에서는 0번 core만 사용하기 때문) */
 
 	set_tsk_need_resched(curr);
 	
@@ -70,7 +62,7 @@ void sched_init(void)
 	init_task.se.exec_start = cfs_rq.clock_task;
 	init_task.se.vruntime = cfs_rq.min_vruntime;
 
-	place_entity(&cfs_rq, &current->se, 1);
+	place_entity(&cfs_rq, &current->se);
 
 	enqueue_entity(&cfs_rq, &init_task.se);
 }

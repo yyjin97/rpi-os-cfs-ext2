@@ -7,7 +7,7 @@ int isspace(char ch) {
         return 0;
 }
 
-int strcmp(char *str1, char *str2) 
+int strcmp(const char *str1, const char *str2) 
 {
     int i = 0;
     while(str1[i] != '\0' || str2[i] != '\0') {

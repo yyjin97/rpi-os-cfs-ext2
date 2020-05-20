@@ -48,9 +48,9 @@ struct SHELL_FILE_OPERATIONS;
 typedef struct SHELL_FS_OPERATIONS
 {
 	int ( *ls)( DISK_OPERATIONS*, const SHELL_ENTRY*, SHELL_ENTRY_LIST* , int );
-	int	( *read_dir )( DISK_OPERATIONS*, struct SHELL_FS_OPERATIONS*, const SHELL_ENTRY*, SHELL_ENTRY_LIST* );
+	int	( *read_dir )( DISK_OPERATIONS*, const SHELL_ENTRY*, SHELL_ENTRY_LIST* );
 	int	( *df )( DISK_OPERATIONS*, struct SHELL_FILESYSEM* );
-	int	( *mv )( DISK_OPERATIONS*, struct SHELL_FS_OPERATIONS*, const SHELL_ENTRY*, const char*, const char* );
+	int	( *mv )( DISK_OPERATIONS*, struct SHELL_FS_OPERATIONS*, SHELL_ENTRY*, const char*, const char* );
 	int ( *mkdir )( DISK_OPERATIONS*, struct SHELL_FS_OPERATIONS*, const SHELL_ENTRY*, const char*, SHELL_ENTRY* );
 	int ( *rmdir )( DISK_OPERATIONS*, struct SHELL_FS_OPERATIONS*, const SHELL_ENTRY*, const char* );
 	int ( *lookup )( DISK_OPERATIONS*, const SHELL_ENTRY*, SHELL_ENTRY*, const char* );

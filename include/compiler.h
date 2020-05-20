@@ -30,7 +30,10 @@ static inline void __write_once_size(volatile void *p, void *res, int size)
 	}
 }
 
-/* x에 val를 write */
+/**
+ * x에 val를 write 
+ * 컴파일러 및 아키텍처의 optimization을 막고, 지정한 메모리 주소를 대상으로 atomic하게 write
+ */
 #define WRITE_ONCE(x, val) \
 ({                          \
     union { typeof(x) __val; char __c[1]; } __u = \

@@ -1,8 +1,4 @@
 
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <memory.h>
-
 #include "shell.h"
 #include "disksim.h"
 #include "printf.h"
@@ -357,7 +353,7 @@ int shell_cmd_fill(int argc, char* argv[])
 	tmp = buffer;
 	while( tmp < buffer + size )
 	{
-		memcpy( tmp, "ISeeYou.", 8 );
+		memcpy( (unsigned long)tmp, (unsigned long)"ISeeYou.", (unsigned long)8 );
 		tmp += 8;
 	}
  
@@ -480,8 +476,11 @@ int shell_cmd_mkdirst(int argc, char* argv[])
 
 		result = g_fsOprs.mkdir(&g_disk, &g_fsOprs, &g_currentDir, argv[i], &entry);
 
-		if(result < 0) return -1;
+		if(result < 0) 
+			return -1;
 	}
+
+	return 0;
 }
 
 int shell_cmd_cat(int argc, char* argv[])
@@ -553,7 +552,7 @@ int shell_cmd_ls(int argc, char* argv[])
 
 	release_entry_list(&list);
 
-	
+	return 0;
 }
 
 int shell_cmd_mv(int argc, char* argv[])

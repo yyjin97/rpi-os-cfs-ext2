@@ -15,6 +15,9 @@
 #define FIRST_TASK task[0]
 #define LAST_TASK task[NR_TASKS-1]
 
+/* 
+ * task state
+ */
 #define TASK_RUNNING			0x00000000
 #define TASK_INTERRUPTIBLE		0x00000001
 #define TASK_UNINTERRUPTIBLE	0x00000002
@@ -24,12 +27,14 @@
 #define PF_KTHREAD				0x00000002	
 #define PF_EXITING 				0x00000004
 
+/*
+ * thread flags
+ */
 #define TIF_NEED_RESCHED		0x00000001	
 
 #define NICE_0_LOAD_SHIFT		10
 #define NICE_0_LOAD				(1L << NICE_0_LOAD_SHIFT)
 #define scale_load(w)			(w)
-#define scale_load_down(w)		(w) 		//64bit 아키텍처에서 weight에 대한 해상도를 조절하는 부분 구현 x
 
 #define MAX_RT_PRIO				100
 
@@ -172,7 +177,7 @@ extern const u32 sched_prio_to_wmult[40];
 
 #define INIT_TASK \
 /*thread_info*/ { { { 0,0,0,0,0,0,0,0,0,0,0,0,0}, 0, 0 }, \
-/* state etc */	 0, 120, PF_KTHREAD, \
+/* state etc */	 0, 130, PF_KTHREAD, \
 /* sched_entity */ { {0,0}, {0,0,0}, 0, 0, 0, 0, 0, 0 }, \
 /* mm */ { 0, 0, {{0}}, 0, {0}}, \
 /* pid */ 0 \

@@ -1,14 +1,9 @@
-#ifndef _FAT_H_
-#define _FAT_H_
+#ifndef _EXT2_H_
+#define _EXT2_H_
 
 #include "common.h"
 #include "disk.h"
 #include "string.h"
-
-//#include <sys/resource.h>
-//#include <sys/types.h>
-//#include <unistd.h>
-//#include <time.h>
 
 #define     EXT2_N_BLOCKS           15
 #define		NUMBER_OF_SECTORS		( 240 + 2 )		//( 8192 + 2 )	//sector 크기 512 byte
@@ -172,11 +167,12 @@ typedef struct
 typedef int (* EXT2_NODE_ADD)(EXT2_FILESYSTEM *, void *, EXT2_NODE *);
 
 int ext2_format(DISK_OPERATIONS* disk);
-int ext2_create(EXT2_NODE* parent, char* entryName, EXT2_NODE* retEntry);
+int ext2_create(EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEntry);
 int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, const char* buffer);
 int ext2_lookup(EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEntry);
 int ext2_mkdir(const EXT2_NODE* parent, const char* entryName, EXT2_NODE* retEntry);
 int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, char* buffer);
+int ext2_chmod(DISK_OPERATIONS* disk, EXT2_FILESYSTEM* fs,EXT2_NODE* parent, EXT2_NODE* retentry,int rwxmode);
 int sector_read(DISK_OPERATIONS* disk, SECTOR group, SECTOR block, SECTOR sector_num, BYTE* data);
 
 int block_write(DISK_OPERATIONS* disk, SECTOR group, SECTOR block, BYTE* data);
@@ -194,7 +190,7 @@ int set_inode_bitmap(DISK_OPERATIONS* disk, SECTOR inode_num, int number);
 int set_inode_block(EXT2_FILESYSTEM* fs, UINT32 i_num, UINT32 b_num);
 int get_inode_block(DISK_OPERATIONS* disk, EXT2_SUPER_BLOCK* sb, UINT32 i_num, UINT32 b_num);
 int alloc_free_block(const EXT2_FILESYSTEM* fs, UINT32 group);
-int alloc_free_inode(EXT2_FILESYSTEM * fs, EXT2_NODE * parent);
+int alloc_free_inode(EXT2_FILESYSTEM * fs, const EXT2_NODE * parent);
 int fill_super_block(EXT2_SUPER_BLOCK * sb);
 int fill_descriptor_block(EXT2_GROUP_DESCRIPTOR * gd, EXT2_SUPER_BLOCK * sb);
 int release_dir_entry(EXT2_FILESYSTEM* fs, EXT2_NODE* parent, EXT2_NODE* entry);

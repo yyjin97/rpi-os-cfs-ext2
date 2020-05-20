@@ -63,7 +63,7 @@ int disksim_read(DISK_OPERATIONS* this, SECTOR sector, void* data)	//'sector'에
 	if (sector < 0 || sector >= this->numberOfSectors)
 		return -1;
 
-	memcpy(data, &disk[sector * this->bytesPerSector], this->bytesPerSector);
+	memcpy((unsigned long)data, (unsigned long)&disk[sector * this->bytesPerSector], (unsigned long)this->bytesPerSector);
 
 	return 0;
 }
@@ -75,7 +75,7 @@ int disksim_write(DISK_OPERATIONS* this, SECTOR sector, const void* data)
 	if (sector < 0 || sector >= this->numberOfSectors)		//sector번호 유효성 검사
 		return -1;
 
-	memcpy(&disk[sector * this->bytesPerSector], data, this->bytesPerSector); 	//해당 sector번호에 해당하는 sector에 data내용 복사 
+	memcpy((unsigned long)&disk[sector * this->bytesPerSector], (unsigned long)data, (unsigned long)this->bytesPerSector); 	//해당 sector번호에 해당하는 sector에 data내용 복사 
 
 	return 0;
 }

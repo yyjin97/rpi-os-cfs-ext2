@@ -17,7 +17,6 @@ unsigned int sysctl_sched_latency			= 64ULL;
 unsigned int sysctl_sched_min_granularity = 8ULL;
 
 /* This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity */
-//unsigned int sched_nr_latency = 8;
 unsigned int sched_nr_latency = 8;
 
 /* After fork, child runs first. If set to 0 (default) then
@@ -63,9 +62,9 @@ void __update_inv_weight(struct load_weight *lw)
 	'x*w*(2^32/wt)>>32 = '로 변경하여 계산해줌 (커널이 나눗셈 연산이 느린것을 감안해 곱하기와 shift연산으로 변환) */
 u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
 {
-	u64 fact = scale_load_down(weight);
 	int shift = WMULT_SHIFT;
 
+	u64 fact = weight;
 	__update_inv_weight(lw);
 
 	fact = (u64) (u32)fact * lw->inv_weight;
@@ -168,9 +167,6 @@ void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		}
 	}
 
-	//if(leftmost) 
-	//	cfs_rq->tasks_timeline.rb_leftmost = &se->run_node;
-
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color_cached(&se->run_node, &cfs_rq->tasks_timeline, leftmost); 
 
@@ -230,10 +226,6 @@ u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct load_weight *load;
 	struct load_weight lw;
 
-	/* linux에서는 cfs_rq_of 함수를 이용해 task가 실행 중인 cpu의 rq->cfs_rq를 구해야하지만
-		현재 rpi os version에서는 하나의 cpu만 이용하므로 cfs_rq도 하나만 존재하게됨 */
-	//******cfs_rq구조체가 cpu마다 존재할 경우 cpu에 맞는 cfs_rq구조체를 가져와야함!!!
-
 	load = &cfs_rq->load;
 
 	/* se의 on_rq가 0인 경우 run queue에 존재하지 않고 current entity가 아닌경우이므로
@@ -276,7 +268,6 @@ void update_curr(struct cfs_rq *cfs_rq)
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	update_min_vruntime(cfs_rq);
 
-	//account_cfs_rq_runtime(); //bandwidth 사용시에만 필요 ????
 }
 
 /* 새로 실행하는 task의 exec_start시간 update */
@@ -287,19 +278,11 @@ static inline void update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_e
 
 /* cfs_rq에 enqueue될 entity의 vruntime을 결정 
 	(기본적으로는 cfs_rq의 min_vruntime을 기준으로 결정) */
-void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
+void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	u64 vruntime = cfs_rq->min_vruntime;
 
-	if(initial) 
-		vruntime += sched_vslice(cfs_rq, se);
-	else {
-		unsigned long thresh = sysctl_sched_latency;
-
-		thresh >>= 1;			//linux kernel에서는 GENTLE_FAIR_SLEEPERS를 지원하는 경우에만 실행
-
-		vruntime -= thresh;
-	}
+	vruntime += sched_vslice(cfs_rq, se);
 
 	se->vruntime = max_vruntime(se->vruntime, vruntime);
 
@@ -308,7 +291,6 @@ void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 /* rbtree에 프로세스를 추가 */
 void enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se) 
 {
-	update_curr(cfs_rq);
 	account_entity_enqueue(cfs_rq, se);
 
 	if(se != cfs_rq->curr)
@@ -337,14 +319,13 @@ void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
 	unsigned long ideal_runtime, delta_exec;
 	struct sched_entity *se;
-	u64 delta;
+	s64 delta;
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
 
 	if(delta_exec > ideal_runtime) {			//time slice를 모두 소진한 경우 
 		resched_curr(curr);
-		//clear_buddies()
 		return;
 	}
 
@@ -368,7 +349,6 @@ void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	/* entity가 rbtree에 enqueue되어 있는 entity인지 체크하고 enqueue되어있으면 dequeue함 
 		__dequeue_entity()는 dequeue_entity()와 달리 on_rq필드를 초기화하지 않음 */
 	if(se->on_rq) {
-		//statistic update
 		__dequeue_entity(cfs_rq, se); 
 	}
 
@@ -410,8 +390,6 @@ void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	/* Update run-time statistics of the 'current' */
 	update_curr(cfs_rq);
 
-	/* 현재 고정 스케줄러 틱만 사용한다고 가정하여 hrtick을 사용하는 경우 pass */
-
 	if(cfs_rq->nr_running > 1 && p->thread_info.preempt_count <= 0)
 		check_preempt_tick(cfs_rq, curr);
 }
@@ -441,7 +419,7 @@ void task_fork_fair(struct task_struct *p)
 		update_curr(cfs_rq);
 		se->vruntime = curr->vruntime;
 	}
-	place_entity(cfs_rq, se, 1);
+	place_entity(cfs_rq, se);
 
 	/* 새로 생성한 task를 enqueue
 		(linux kernel에서는 task_fork_fair함수에 이부분 존재하지 않음) */
@@ -452,7 +430,6 @@ void task_fork_fair(struct task_struct *p)
 		resched_curr(curr);
 	}
 
-	//se->vruntime -= cfs_rq->min_vruntime;
 }
 
 /* 새로 추가하는 entity의 load값을 cfs_rq의 load에 추가 */
@@ -478,9 +455,9 @@ struct task_struct * pick_next_task_fair(struct cfs_rq *cfs_rq, struct task_stru
 	if(!cfs_rq->nr_running)
 		return NULL;
 
-	put_prev_entity(cfs_rq, &prev->se);
-
 	se = pick_next_entity(cfs_rq, NULL);
+
+	put_prev_entity(cfs_rq, &prev->se);
 	set_next_entity(cfs_rq, se);
 
 	p = task_of(se);
